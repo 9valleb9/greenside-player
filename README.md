@@ -260,7 +260,7 @@ sudo apt-get update && sudo apt-get upgrade -y
 Create a registration token in the Greenside dashboard (Device Management > Add Player), then run:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/9valleb9/greenside-player/main/install.sh \
+curl -fsSL https://www.greenside.live/player/install \
   | sudo bash -s -- --token YOUR_TOKEN http://YOUR_EDGE_IP:3000
 ```
 
@@ -269,7 +269,7 @@ This registers the player with the cloud, enables heartbeat monitoring, and conn
 **Local-only mode (no cloud registration):**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/9valleb9/greenside-player/main/install.sh \
+curl -fsSL https://www.greenside.live/player/install \
   | sudo bash -s -- http://YOUR_EDGE_IP:3000
 ```
 
