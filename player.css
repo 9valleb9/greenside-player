@@ -201,9 +201,29 @@ body.mode-web { cursor: default; }
 }
 
 #greenside-logo {
-  width: 280px;
-  height: auto;
   margin-bottom: 32px;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 48px;
+  font-weight: 800;
+  letter-spacing: 4px;
+  line-height: 1;
+}
+
+.logo-green {
+  color: #2ecc71;
+}
+
+.logo-side {
+  color: #fff;
+}
+
+.logo-player {
+  display: block;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 8px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 8px;
 }
 
 #offline-message {
@@ -285,6 +305,7 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   #leaderboard-label { font-size: 10px; padding: 0 10px; }
   #leaderboard-content .lb-entry { font-size: 12px; margin-right: 32px; }
   #sponsor-bar { height: 30px; font-size: 11px; }
-  #greenside-logo { width: 200px; }
+  #greenside-logo { font-size: 32px; letter-spacing: 2px; }
+  .logo-player { font-size: 12px; letter-spacing: 6px; }
   #offline-message { font-size: 14px; }
 }
