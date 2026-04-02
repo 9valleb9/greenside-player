@@ -31,7 +31,7 @@
 # ============================================================================
 set -euo pipefail
 
-PLAYER_IMAGE="ghcr.io/greenside-live/greenside-player:latest"
+PLAYER_IMAGE="ghcr.io/9valleb9/greenside-player:latest"
 PLAYER_CONTAINER="greenside-player"
 PLAYER_PORT=8080
 SERVICE_NAME="greenside-kiosk"
