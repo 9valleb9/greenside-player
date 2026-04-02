@@ -18,7 +18,7 @@
   const DEVICE_KEY  = params.get('deviceKey') || '';
 
   // Runtime state — API target can be updated by cloud config
-  let apiBase  = (params.get('api') || 'http://10.1.10.205:3000').replace(/\/+$/, '');
+  let apiBase  = (params.get('api') || 'http://localhost:3000').replace(/\/+$/, '');
   let mode     = params.get('mode') || 'kiosk';
   let rotation = parseInt(params.get('rotate') || '0', 10);
 

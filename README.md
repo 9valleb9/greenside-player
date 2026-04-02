@@ -65,7 +65,7 @@ The player is configured via URL query parameters:
 
 | Parameter    | Default                    | Description                                            |
 |--------------|----------------------------|--------------------------------------------------------|
-| `api`        | `http://10.1.10.205:3000`  | API base URL (edge device or cloud)                    |
+| `api`        | `http://localhost:3000`     | API base URL (edge device or cloud)                    |
 | `mode`       | `kiosk`                    | `kiosk` (no controls) or `web`                         |
 | `rotate`     | `0`                        | Screen rotation: 0, 90, 180, 270                      |
 | `server`     | _(none)_                   | Greenside cloud URL (enables cloud config polling)     |
@@ -78,16 +78,16 @@ Example URLs:
 
 ```
 # Kiosk pointing at local edge device (local-only mode)
-http://localhost:8080?api=http://10.1.10.205:3000&mode=kiosk
+http://localhost:8080?api=http://YOUR_EDGE_IP:3000&mode=kiosk
 
 # Web embed pointing at cloud
 http://localhost:8080?api=https://greenside.live&mode=web
 
 # Portrait TV
-http://localhost:8080?api=http://10.1.10.205:3000&mode=kiosk&rotate=90
+http://localhost:8080?api=http://YOUR_EDGE_IP:3000&mode=kiosk&rotate=90
 
 # Cloud-managed player (origin assigned remotely)
-http://localhost:8080?api=http://10.1.10.205:3000&mode=kiosk&server=https://www.greenside.live&playerId=abc123&deviceKey=xyz789
+http://localhost:8080?api=http://YOUR_EDGE_IP:3000&mode=kiosk&server=https://www.greenside.live&playerId=abc123&deviceKey=xyz789
 ```
 
 ## API Endpoints
@@ -102,7 +102,7 @@ Only called when the player is registered with the cloud. Authenticated with `Be
 {
   "success": true,
   "data": {
-    "apiTarget": "http://10.1.10.205:3000",
+    "apiTarget": "http://YOUR_EDGE_IP:3000",
     "mode": "kiosk",
     "rotation": 0
   }
@@ -217,6 +217,8 @@ Full instructions for setting up a Raspberry Pi as a dedicated Greenside display
 - Network access to the Greenside edge device or cloud API
 - A registration token from the Greenside dashboard (for cloud mode)
 
+> **Networking note:** The player must be able to reach the edge device's API. If the player and edge device are not on the same local network, you must use a VPN such as [Tailscale](https://tailscale.com/) to connect them. With Tailscale, use the edge device's Tailscale IP (e.g., `http://100.x.x.x:3000`) as the API base URL.
+
 ### Step 1: Flash Raspberry Pi OS Lite
 
 1. Download [Raspberry Pi Imager](https://www.raspberrypi.com/software/) on your computer
@@ -259,7 +261,7 @@ Create a registration token in the Greenside dashboard (Device Management > Add 
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/9valleb9/greenside-player/main/install.sh \
-  | sudo bash -s -- --token YOUR_TOKEN http://10.1.10.205:3000
+  | sudo bash -s -- --token YOUR_TOKEN http://YOUR_EDGE_IP:3000
 ```
 
 This registers the player with the cloud, enables heartbeat monitoring, and connects it to your course.
@@ -268,7 +270,7 @@ This registers the player with the cloud, enables heartbeat monitoring, and conn
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/9valleb9/greenside-player/main/install.sh \
-  | sudo bash -s -- http://10.1.10.205:3000
+  | sudo bash -s -- http://YOUR_EDGE_IP:3000
 ```
 
 If you omit the API URL, the script will prompt you.
@@ -279,7 +281,7 @@ If you omit the API URL, the script will prompt you.
 |------|---------|-------------|
 | `--token <token>` | _(none)_ | Registration token from the dashboard. Enables cloud registration and heartbeat. |
 | `--server <url>` | `https://www.greenside.live` | Greenside cloud URL (override for staging/self-hosted). |
-| First positional arg | `http://10.1.10.205:3000` | API base URL (edge device or cloud). Prompted if omitted. |
+| First positional arg | _(prompted)_ | Edge device API URL (e.g., `http://YOUR_EDGE_IP:3000`). Required. |
 
 ### What the Installer Does
 
@@ -319,7 +321,7 @@ sudo nano /opt/greenside-player/config.env
 ```
 
 ```
-API_BASE=http://10.1.10.205:3000
+API_BASE=http://YOUR_EDGE_IP:3000
 MODE=kiosk
 ROTATION=0
 PLAYER_PORT=8080
@@ -367,6 +369,7 @@ Edit `/opt/greenside-player/config.env` and set `ROTATION=90` (or 180, 270), the
 | Screen goes to sleep | Verify `/etc/X11/xorg.conf.d/10-blanking.conf` exists with DPMS disabled. Re-run the installer if missing. |
 | Registration failed | Verify the token is valid and hasn't expired. Check cloud URL with `--server`. The player still works in local-only mode if registration fails. |
 | Player not showing in dashboard | Check heartbeat: `sudo /usr/local/bin/greenside-player-heartbeat` and verify `DEVICE_KEY` and `HEARTBEAT_URL` are in config.env. Check cron: `crontab -l`. |
+| Can't reach edge device | The player and edge device must be on the same network. If they're on different networks, use a VPN like [Tailscale](https://tailscale.com/) and use the Tailscale IP as the API URL. |
 
 ## Related Repositories
 

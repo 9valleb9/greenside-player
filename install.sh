@@ -18,16 +18,16 @@
 #
 # Examples:
 #   # Local-only mode (no cloud registration)
-#   sudo bash install.sh http://10.1.10.205:3000
+#   sudo bash install.sh http://YOUR_EDGE_IP:3000
 #
 #   # Register with cloud using a dashboard token
-#   sudo bash install.sh --token abc123 http://10.1.10.205:3000
+#   sudo bash install.sh --token abc123 http://YOUR_EDGE_IP:3000
 #
 #   # Register with a custom cloud server
-#   sudo bash install.sh --token abc123 --server https://staging.greenside.live http://10.1.10.205:3000
+#   sudo bash install.sh --token abc123 --server https://staging.greenside.live http://YOUR_EDGE_IP:3000
 #
 #   # Remote install (curl from cloud)
-#   curl -fsSL https://www.greenside.live/player/install | sudo bash -s -- --token abc123 http://10.1.10.205:3000
+#   curl -fsSL https://www.greenside.live/player/install | sudo bash -s -- --token abc123 http://YOUR_EDGE_IP:3000
 # ============================================================================
 set -euo pipefail
 
@@ -36,7 +36,7 @@ PLAYER_CONTAINER="greenside-player"
 PLAYER_PORT=8080
 SERVICE_NAME="greenside-kiosk"
 XSERVICE_NAME="greenside-xserver"
-DEFAULT_API="http://10.1.10.205:3000"
+DEFAULT_API=""
 DEFAULT_SERVER="https://www.greenside.live"
 CONFIG_DIR="/opt/greenside-player"
 
@@ -78,8 +78,11 @@ fi
 
 # --- Get API_BASE ---
 if [[ -z "$API_BASE" ]]; then
-  read -rp "Enter API base URL [$DEFAULT_API]: " API_BASE
-  API_BASE="${API_BASE:-$DEFAULT_API}"
+  read -rp "Enter edge device API URL (e.g., http://192.168.1.100:3000): " API_BASE
+  if [[ -z "$API_BASE" ]]; then
+    echo "Error: API base URL is required."
+    exit 1
+  fi
   API_BASE="${API_BASE%/}"
 fi
 echo "Using API_BASE=$API_BASE"
