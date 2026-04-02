@@ -98,7 +98,7 @@ echo "Installing system dependencies..."
 apt-get update -qq
 apt-get install -y -qq \
   xserver-xorg x11-xserver-utils xinit \
-  chromium-browser \
+  chromium \
   unclutter \
   docker.io \
   curl \
@@ -279,7 +279,7 @@ Type=simple
 Environment=DISPLAY=:0
 EnvironmentFile=${CONFIG_DIR}/config.env
 ExecStartPre=/bin/sleep 5
-ExecStart=/usr/bin/chromium-browser \\
+ExecStart=/usr/bin/chromium \\
   --kiosk \\
   --noerrdialogs \\
   --disable-infobars \\
