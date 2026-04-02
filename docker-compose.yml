@@ -1,0 +1,7 @@
+services:
+  greenside-player:
+    build: .
+    container_name: greenside-player
+    ports:
+      - "8080:80"
+    restart: unless-stopped

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Greenside Live</title>
+  <link rel="stylesheet" href="player.css">
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+</head>
+<body>
+  <!-- Video Layer -->
+  <div id="video-container">
+    <video id="player" muted autoplay playsinline></video>
+  </div>
+
+  <!-- Overlays (visible when live) -->
+  <div id="overlays" class="hidden">
+    <!-- Tournament Info — top left -->
+    <div id="tournament-bar">
+      <span id="tournament-name"></span>
+      <span id="current-hole"></span>
+    </div>
+
+    <!-- Active Team — top right -->
+    <div id="active-team" class="hidden">
+      <div id="active-team-name"></div>
+      <div id="active-team-hole"></div>
+      <div id="active-team-members"></div>
+    </div>
+
+    <!-- Bottom bar: leaderboard ticker + sponsors -->
+    <div id="bottom-bar">
+      <div id="leaderboard-ticker" class="hidden">
+        <div id="leaderboard-label">LEADERBOARD</div>
+        <div id="leaderboard-track">
+          <div id="leaderboard-content"></div>
+        </div>
+      </div>
+      <div id="sponsor-bar" class="hidden">
+        <span id="sponsor-text"></span>
+        <img id="sponsor-logo" class="hidden" alt="">
+      </div>
+    </div>
+  </div>
+
+  <!-- Offline / Standby Screen -->
+  <div id="offline-screen">
+    <div id="offline-content">
+      <svg id="greenside-logo" viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="30" cy="30" r="12" fill="#2ecc71" opacity="0.9"/>
+        <path d="M30 18 Q38 24 30 42 Q22 24 30 18Z" fill="#27ae60"/>
+        <text x="52" y="38" font-family="system-ui, sans-serif" font-weight="700" font-size="26" fill="#fff" letter-spacing="2">GREENSIDE</text>
+      </svg>
+      <div id="offline-message">Stream starting soon</div>
+      <div id="offline-pulse"></div>
+    </div>
+  </div>
+
+  <!-- Web mode controls -->
+  <div id="web-controls" class="hidden">
+    <button id="btn-mute" title="Toggle mute">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+        <path d="M3 9v6h4l5 5V4L7 9H3z"/>
+        <path id="mute-slash" d="M16.5 12A4.5 4.5 0 0014 8v8a4.47 4.47 0 002.5-4z"/>
+      </svg>
+    </button>
+    <button id="btn-fullscreen" title="Fullscreen">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+        <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+      </svg>
+    </button>
+  </div>
+
+  <script src="player.js"></script>
+</body>
+</html>

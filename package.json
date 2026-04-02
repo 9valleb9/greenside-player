@@ -1,0 +1,19 @@
+{
+  "name": "greenside-player",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Universal viewer for Greenside golf course live streams — kiosk TV, web embed, and mobile viewer",
+  "keywords": [
+    "golf",
+    "streaming",
+    "live-video",
+    "hls",
+    "kiosk",
+    "greenside"
+  ],
+  "scripts": {
+    "dev": "npx serve -p 8080 -s .",
+    "docker:build": "docker build -t greenside-player .",
+    "docker:run": "docker run -d -p 8080:80 --name greenside-player greenside-player"
+  }
+}

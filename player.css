@@ -1,0 +1,290 @@
+/* === Reset & Base === */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #0a0a0a;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: #fff;
+  cursor: none;
+}
+
+body.mode-web { cursor: default; }
+
+.hidden { display: none !important; }
+
+/* === Video === */
+#video-container {
+  position: fixed; inset: 0;
+  z-index: 1;
+  background: #000;
+}
+
+#player {
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+
+/* === Overlays === */
+#overlays {
+  position: fixed; inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* Tournament bar — top left */
+#tournament-bar {
+  position: absolute;
+  top: 24px; left: 24px;
+  display: flex; align-items: center; gap: 12px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+#current-hole {
+  color: #2ecc71;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Active team — top right */
+#active-team {
+  position: absolute;
+  top: 24px; right: 24px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  padding: 12px 20px;
+  border-radius: 6px;
+  border-left: 3px solid #2ecc71;
+  max-width: 280px;
+}
+
+#active-team-name {
+  font-size: 15px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+#active-team-hole {
+  font-size: 12px;
+  color: #2ecc71;
+  margin-bottom: 4px;
+}
+
+#active-team-members {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.4;
+}
+
+/* === Bottom bar === */
+#bottom-bar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  display: flex; flex-direction: column;
+}
+
+/* Leaderboard ticker */
+#leaderboard-ticker {
+  display: flex;
+  align-items: stretch;
+  background: rgba(0, 0, 0, 0.8);
+  height: 40px;
+  overflow: hidden;
+}
+
+#leaderboard-label {
+  display: flex; align-items: center;
+  background: #2ecc71;
+  color: #000;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  padding: 0 16px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+#leaderboard-track {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+#leaderboard-content {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  animation: ticker-scroll 30s linear infinite;
+  padding-left: 100%;
+}
+
+#leaderboard-content .lb-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 48px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+#leaderboard-content .lb-pos {
+  color: #2ecc71;
+  font-weight: 700;
+  font-size: 12px;
+  min-width: 18px;
+}
+
+#leaderboard-content .lb-name {
+  color: #fff;
+}
+
+#leaderboard-content .lb-score {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+}
+
+@keyframes ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* Sponsor bar */
+#sponsor-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.9);
+  height: 36px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+#sponsor-logo {
+  height: 20px;
+  width: auto;
+  object-fit: contain;
+}
+
+/* === Offline Screen === */
+#offline-screen {
+  position: fixed; inset: 0;
+  z-index: 100;
+  background: radial-gradient(ellipse at center, #111 0%, #0a0a0a 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.6s ease;
+}
+
+#offline-screen.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#offline-content {
+  text-align: center;
+}
+
+#greenside-logo {
+  width: 280px;
+  height: auto;
+  margin-bottom: 32px;
+}
+
+#offline-message {
+  font-size: 18px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 40px;
+}
+
+#offline-pulse {
+  width: 8px; height: 8px;
+  background: #2ecc71;
+  border-radius: 50%;
+  margin: 0 auto;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.6); }
+}
+
+/* === Web Controls === */
+#web-controls {
+  position: fixed;
+  bottom: 90px; right: 24px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: auto;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+body.mode-web:hover #web-controls,
+body.mode-web #web-controls:focus-within {
+  opacity: 1;
+}
+
+#web-controls button {
+  width: 44px; height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+#web-controls button:hover {
+  background: rgba(46, 204, 113, 0.6);
+}
+
+/* === Rotation === */
+body.rotate-90  #video-container,
+body.rotate-90  #overlays,
+body.rotate-90  #offline-screen { transform: rotate(90deg);  transform-origin: center; }
+body.rotate-180 #video-container,
+body.rotate-180 #overlays,
+body.rotate-180 #offline-screen { transform: rotate(180deg); transform-origin: center; }
+body.rotate-270 #video-container,
+body.rotate-270 #overlays,
+body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: center; }
+
+/* === Responsive === */
+@media (max-width: 768px) {
+  #tournament-bar { top: 12px; left: 12px; padding: 8px 14px; font-size: 13px; }
+  #current-hole { font-size: 12px; }
+  #active-team { top: 12px; right: 12px; padding: 8px 14px; max-width: 200px; }
+  #active-team-name { font-size: 13px; }
+  #leaderboard-ticker { height: 34px; }
+  #leaderboard-label { font-size: 10px; padding: 0 10px; }
+  #leaderboard-content .lb-entry { font-size: 12px; margin-right: 32px; }
+  #sponsor-bar { height: 30px; font-size: 11px; }
+  #greenside-logo { width: 200px; }
+  #offline-message { font-size: 14px; }
+}
