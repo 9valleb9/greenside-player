@@ -9,10 +9,20 @@
   // Configuration
   // ---------------------------------------------------------------------------
   const params = new URLSearchParams(window.location.search);
-  const API_BASE = (params.get('api') || 'http://10.1.10.205:3000').replace(/\/+$/, '');
-  const MODE     = params.get('mode') || 'kiosk';   // kiosk | web
-  const ROTATION = parseInt(params.get('rotate') || '0', 10);
-  const POLL_INTERVAL = 10_000; // ms
+  const CONFIG_POLL_INTERVAL = 60_000;  // check cloud config every 60s
+  const STREAM_POLL_INTERVAL = 10_000;  // check stream/display every 10s
+
+  // Cloud config (for registered players)
+  const SERVER_URL  = (params.get('server') || '').replace(/\/+$/, '');
+  const PLAYER_ID   = params.get('playerId') || '';
+  const DEVICE_KEY  = params.get('deviceKey') || '';
+
+  // Runtime state — API target can be updated by cloud config
+  let apiBase  = (params.get('api') || 'http://10.1.10.205:3000').replace(/\/+$/, '');
+  let mode     = params.get('mode') || 'kiosk';
+  let rotation = parseInt(params.get('rotate') || '0', 10);
+
+  const isRegistered = !!(SERVER_URL && PLAYER_ID && DEVICE_KEY);
 
   // ---------------------------------------------------------------------------
   // DOM refs
@@ -49,31 +59,90 @@
   // Init
   // ---------------------------------------------------------------------------
   function init() {
-    // Apply mode
-    if (MODE === 'web') {
-      document.body.classList.add('mode-web');
-      $webControls.classList.remove('hidden');
-      setupWebControls();
+    applyMode(mode);
+    applyRotation(rotation);
+
+    // If registered with cloud, poll for config
+    if (isRegistered) {
+      pollConfig();
+      setInterval(pollConfig, CONFIG_POLL_INTERVAL);
     }
 
-    // Apply rotation
-    if ([90, 180, 270].includes(ROTATION)) {
-      document.body.classList.add('rotate-' + ROTATION);
-    }
-
-    // Start polling
-    poll();
-    setInterval(poll, POLL_INTERVAL);
+    // Start stream/display polling
+    pollStream();
+    setInterval(pollStream, STREAM_POLL_INTERVAL);
   }
 
   // ---------------------------------------------------------------------------
-  // API polling
+  // Cloud config polling
   // ---------------------------------------------------------------------------
-  async function poll() {
+  async function pollConfig() {
+    try {
+      const res = await fetch(SERVER_URL + '/api/players/' + PLAYER_ID + '/config', {
+        headers: { 'Authorization': 'Bearer ' + DEVICE_KEY },
+      });
+      if (!res.ok) return;
+      const json = await res.json();
+      const data = json.data || {};
+      applyCloudConfig(data);
+    } catch (_err) {
+      // Cloud unreachable — keep using current config
+    }
+  }
+
+  function applyCloudConfig(data) {
+    // Update API target if cloud assigned one
+    if (data.apiTarget && data.apiTarget !== apiBase) {
+      const newBase = data.apiTarget.replace(/\/+$/, '');
+      console.log('[greenside] API target changed:', apiBase, '→', newBase);
+      apiBase = newBase;
+      // Force an immediate stream poll with the new target
+      pollStream();
+    }
+
+    // Update mode if changed
+    if (data.mode && data.mode !== mode) {
+      mode = data.mode;
+      applyMode(mode);
+    }
+
+    // Update rotation if changed
+    if (data.rotation != null && data.rotation !== rotation) {
+      rotation = parseInt(data.rotation, 10);
+      applyRotation(rotation);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Mode & rotation
+  // ---------------------------------------------------------------------------
+  function applyMode(m) {
+    if (m === 'web') {
+      document.body.classList.add('mode-web');
+      $webControls.classList.remove('hidden');
+      setupWebControls();
+    } else {
+      document.body.classList.remove('mode-web');
+      $webControls.classList.add('hidden');
+    }
+  }
+
+  function applyRotation(deg) {
+    // Remove existing rotation classes
+    document.body.classList.remove('rotate-90', 'rotate-180', 'rotate-270');
+    if ([90, 180, 270].includes(deg)) {
+      document.body.classList.add('rotate-' + deg);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Stream & display polling
+  // ---------------------------------------------------------------------------
+  async function pollStream() {
     try {
       const [statusRes, settingsRes] = await Promise.all([
-        fetch(API_BASE + '/api/stream/status').then(r => r.json()),
-        fetch(API_BASE + '/api/system/display-settings').then(r => r.json()),
+        fetch(apiBase + '/api/stream/status').then(r => r.json()),
+        fetch(apiBase + '/api/system/display-settings').then(r => r.json()),
       ]);
       handleStreamStatus(statusRes.data || {});
       handleDisplaySettings(settingsRes.data || {});
@@ -248,7 +317,11 @@
   // ---------------------------------------------------------------------------
   // Web controls
   // ---------------------------------------------------------------------------
+  let webControlsSetup = false;
   function setupWebControls() {
+    if (webControlsSetup) return;
+    webControlsSetup = true;
+
     $btnMute.addEventListener('click', () => {
       $video.muted = !$video.muted;
       $btnMute.title = $video.muted ? 'Unmute' : 'Mute';

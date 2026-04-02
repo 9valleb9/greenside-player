@@ -288,7 +288,7 @@ ExecStart=/usr/bin/chromium-browser \\
   --disable-component-update \\
   --autoplay-policy=no-user-gesture-required \\
   --check-for-update-interval=31536000 \\
-  "http://localhost:\${PLAYER_PORT}?api=\${API_BASE}&mode=kiosk&rotate=\${ROTATION}"
+  "http://localhost:\${PLAYER_PORT}?api=\${API_BASE}&mode=\${MODE}&rotate=\${ROTATION}&server=\${SERVER_URL:-}&playerId=\${PLAYER_ID:-}&deviceKey=\${DEVICE_KEY:-}"
 User=pi
 Restart=on-failure
 RestartSec=10

@@ -63,16 +63,21 @@ greenside-player/
 
 The player is configured via URL query parameters:
 
-| Parameter  | Default                    | Description                          |
-|------------|----------------------------|--------------------------------------|
-| `api`      | `http://10.1.10.205:3000`  | API base URL (edge device or cloud)  |
-| `mode`     | `kiosk`                    | `kiosk` (no controls) or `web`       |
-| `rotate`   | `0`                        | Screen rotation: 0, 90, 180, 270    |
+| Parameter    | Default                    | Description                                            |
+|--------------|----------------------------|--------------------------------------------------------|
+| `api`        | `http://10.1.10.205:3000`  | API base URL (edge device or cloud)                    |
+| `mode`       | `kiosk`                    | `kiosk` (no controls) or `web`                         |
+| `rotate`     | `0`                        | Screen rotation: 0, 90, 180, 270                      |
+| `server`     | _(none)_                   | Greenside cloud URL (enables cloud config polling)     |
+| `playerId`   | _(none)_                   | Player ID from cloud registration                      |
+| `deviceKey`  | _(none)_                   | Device key from cloud registration                     |
+
+When `server`, `playerId`, and `deviceKey` are all provided, the player polls the cloud every 60 seconds for config updates. The cloud can remotely change which origin the player connects to, its display mode, and rotation — no reboot required.
 
 Example URLs:
 
 ```
-# Kiosk pointing at local edge device
+# Kiosk pointing at local edge device (local-only mode)
 http://localhost:8080?api=http://10.1.10.205:3000&mode=kiosk
 
 # Web embed pointing at cloud
@@ -80,11 +85,33 @@ http://localhost:8080?api=https://greenside.live&mode=web
 
 # Portrait TV
 http://localhost:8080?api=http://10.1.10.205:3000&mode=kiosk&rotate=90
+
+# Cloud-managed player (origin assigned remotely)
+http://localhost:8080?api=http://10.1.10.205:3000&mode=kiosk&server=https://www.greenside.live&playerId=abc123&deviceKey=xyz789
 ```
 
 ## API Endpoints
 
-The player fetches data from two endpoints on the configured API:
+The player fetches data from these endpoints:
+
+### `GET <SERVER_URL>/api/players/<playerId>/config` (cloud, every 60s)
+
+Only called when the player is registered with the cloud. Authenticated with `Bearer <deviceKey>`.
+
+```json
+{
+  "success": true,
+  "data": {
+    "apiTarget": "http://10.1.10.205:3000",
+    "mode": "kiosk",
+    "rotation": 0
+  }
+}
+```
+
+If `apiTarget` changes, the player switches to the new origin live — no reboot. `mode` and `rotation` are also applied dynamically.
+
+### Origin API (every 10s)
 
 ### `GET <API_BASE>/api/stream/status`
 
@@ -182,31 +209,41 @@ Full instructions for setting up a Raspberry Pi as a dedicated Greenside display
 
 ### Prerequisites
 
-- Raspberry Pi 4 (or 3B+) with at least 1GB RAM
-- microSD card (8GB+) with **Raspberry Pi OS Lite** (64-bit recommended)
+- **Raspberry Pi 5** (recommended), Pi 4, or Pi 3B+ with at least 1GB RAM
+- microSD card (16GB+ recommended, 8GB minimum)
+- **Raspberry Pi OS Lite (64-bit)** — Bookworm or later
 - HDMI TV or monitor
 - Ethernet or configured Wi-Fi
 - Network access to the Greenside edge device or cloud API
+- A registration token from the Greenside dashboard (for cloud mode)
 
 ### Step 1: Flash Raspberry Pi OS Lite
 
-1. Download [Raspberry Pi Imager](https://www.raspberrypi.com/software/)
-2. Choose **Raspberry Pi OS Lite (64-bit)** — no desktop environment needed
-3. Click the gear icon to pre-configure:
-   - **Hostname:** `greenside-player` (or any name)
-   - **Enable SSH:** yes
-   - **Username/password:** `pi` / your password
-   - **Wi-Fi:** configure if not using Ethernet
-   - **Locale:** set your timezone
-4. Flash to the microSD card and boot the Pi
+1. Download [Raspberry Pi Imager](https://www.raspberrypi.com/software/) on your computer
+2. Insert the microSD card
+3. In Raspberry Pi Imager:
+   - **Device:** select your Pi model (Raspberry Pi 5, 4, etc.)
+   - **OS:** choose **Raspberry Pi OS (other)** → **Raspberry Pi OS Lite (64-bit)**
+   - **Storage:** select your microSD card
+4. Click the **gear icon** (or "Edit Settings") to pre-configure:
+   - **Hostname:** `greenside-player` (or a name like `clubhouse-tv`)
+   - **Enable SSH:** yes, use password authentication
+   - **Username:** `pi`
+   - **Password:** set a strong password
+   - **Wi-Fi:** configure SSID and password if not using Ethernet
+   - **Locale:** set your timezone and keyboard layout
+5. Click **Write** and wait for it to finish
+6. Insert the microSD card into the Pi and power it on
 
 ### Step 2: Connect and Update
 
-SSH into the Pi:
+Wait about 60 seconds for first boot, then SSH in:
 
 ```bash
 ssh pi@greenside-player.local
 ```
+
+> If `.local` doesn't resolve, find the Pi's IP on your router and use `ssh pi@<IP>`.
 
 Update the system:
 
@@ -248,13 +285,22 @@ If you omit the API URL, the script will prompt you.
 
 1. Installs minimal X server, Chromium, Docker, unclutter, curl, and jq
 2. Pulls the `greenside-player` Docker image and starts it on port 8080
-3. **If `--token` provided:** registers with the cloud (POST `/api/players/register`), stores player ID and device key, installs a heartbeat cron job (every 5 minutes)
+3. **If `--token` provided:**
+   - Registers with the cloud (`POST /api/players/register`) using machine ID and hostname
+   - Stores player ID and device key in config
+   - Installs a heartbeat cron job (every 5 minutes)
+   - Passes cloud credentials to the player URL so it can poll for config updates
 4. Creates two systemd services:
    - `greenside-xserver` — X11 display server (no desktop)
    - `greenside-kiosk` — Chromium in fullscreen kiosk mode
 5. Disables screen blanking, screensaver, DPMS power management
 6. Hides the mouse cursor
 7. Writes config to `/opt/greenside-player/config.env`
+
+**After install, cloud-registered players:**
+- Report heartbeat every 5 minutes (online/offline status)
+- Poll for config every 60 seconds (which origin to connect to, mode, rotation)
+- Can be reassigned to a different origin from the cloud dashboard — no SSH or reboot needed
 
 ### Step 4: Reboot
 
