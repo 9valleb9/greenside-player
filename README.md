@@ -216,30 +216,45 @@ sudo apt-get update && sudo apt-get upgrade -y
 
 ### Step 3: Run the Installer
 
-One-line remote install:
+**With cloud registration (recommended):**
+
+Create a registration token in the Greenside dashboard (Device Management > Add Player), then run:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/9valleb9/greenside-player/main/install.sh | sudo bash -s -- http://10.1.10.205:3000
+curl -fsSL https://raw.githubusercontent.com/9valleb9/greenside-player/main/install.sh \
+  | sudo bash -s -- --token YOUR_TOKEN http://10.1.10.205:3000
 ```
 
-Or with the cloud API:
+This registers the player with the cloud, enables heartbeat monitoring, and connects it to your course.
+
+**Local-only mode (no cloud registration):**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/9valleb9/greenside-player/main/install.sh | sudo bash -s -- https://greenside.live
+curl -fsSL https://raw.githubusercontent.com/9valleb9/greenside-player/main/install.sh \
+  | sudo bash -s -- http://10.1.10.205:3000
 ```
 
 If you omit the API URL, the script will prompt you.
 
+**Installer flags:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--token <token>` | _(none)_ | Registration token from the dashboard. Enables cloud registration and heartbeat. |
+| `--server <url>` | `https://www.greenside.live` | Greenside cloud URL (override for staging/self-hosted). |
+| First positional arg | `http://10.1.10.205:3000` | API base URL (edge device or cloud). Prompted if omitted. |
+
 ### What the Installer Does
 
-1. Installs minimal X server, Chromium, Docker, and unclutter
+1. Installs minimal X server, Chromium, Docker, unclutter, curl, and jq
 2. Pulls the `greenside-player` Docker image and starts it on port 8080
-3. Creates two systemd services:
+3. **If `--token` provided:** registers with the cloud (POST `/api/players/register`), stores player ID and device key, installs a heartbeat cron job (every 5 minutes)
+4. Creates two systemd services:
    - `greenside-xserver` — X11 display server (no desktop)
    - `greenside-kiosk` — Chromium in fullscreen kiosk mode
-4. Disables screen blanking, screensaver, DPMS power management
-5. Hides the mouse cursor
-6. Writes config to `/opt/greenside-player/config.env`
+5. Disables screen blanking, screensaver, DPMS power management
+6. Hides the mouse cursor
+7. Writes config to `/opt/greenside-player/config.env`
 
 ### Step 4: Reboot
 
@@ -262,6 +277,10 @@ API_BASE=http://10.1.10.205:3000
 MODE=kiosk
 ROTATION=0
 PLAYER_PORT=8080
+PLAYER_ID=abc123          # present if registered with cloud
+DEVICE_KEY=xyz789          # present if registered with cloud
+HEARTBEAT_URL=https://...  # present if registered with cloud
+SERVER_URL=https://...     # present if registered with cloud
 ```
 
 Then restart the kiosk:
@@ -300,6 +319,8 @@ Edit `/opt/greenside-player/config.env` and set `ROTATION=90` (or 180, 270), the
 | Docker pull fails | Check internet connectivity. The Pi needs access to `ghcr.io`. If behind a firewall, build locally: clone the repo and run `docker build -t ghcr.io/greenside-live/greenside-player:latest .` |
 | Cursor visible | Run `sudo systemctl restart greenside-xserver`. Verify unclutter is installed: `which unclutter`. |
 | Screen goes to sleep | Verify `/etc/X11/xorg.conf.d/10-blanking.conf` exists with DPMS disabled. Re-run the installer if missing. |
+| Registration failed | Verify the token is valid and hasn't expired. Check cloud URL with `--server`. The player still works in local-only mode if registration fails. |
+| Player not showing in dashboard | Check heartbeat: `sudo /usr/local/bin/greenside-player-heartbeat` and verify `DEVICE_KEY` and `HEARTBEAT_URL` are in config.env. Check cron: `crontab -l`. |
 
 ## Related Repositories
 
