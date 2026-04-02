@@ -33,13 +33,13 @@ Universal viewer for golf course live streams. Displays HLS video with tournamen
 
 ## Tech Stack
 
-| Layer       | Technology                        |
-|-------------|-----------------------------------|
-| Video       | HLS.js                            |
-| UI          | Vanilla HTML / CSS / JS           |
-| Animations  | CSS keyframes (ticker, sponsors)  |
-| Container   | Docker (nginx:alpine)             |
-| Kiosk       | Chromium --kiosk on Raspberry Pi  |
+| Layer       | Technology                          |
+|-------------|-------------------------------------|
+| Video       | HLS.js                              |
+| UI          | Vanilla HTML / CSS / JS             |
+| Animations  | CSS keyframes (ticker, sponsors)    |
+| Container   | Docker (nginx:alpine)               |
+| Kiosk       | cage (Wayland) + Chromium on RPi    |
 
 No build step, no framework, no server runtime.
 
@@ -209,7 +209,7 @@ Full instructions for setting up a Raspberry Pi as a dedicated Greenside display
 
 ### Prerequisites
 
-- **Raspberry Pi 5** (recommended), Pi 4, or Pi 3B+ with at least 1GB RAM
+- **Raspberry Pi 5** (recommended) or Pi 4
 - microSD card (16GB+ recommended, 8GB minimum)
 - **Raspberry Pi OS Lite (64-bit)** — Bookworm or later
 - HDMI TV or monitor
@@ -225,13 +225,12 @@ Full instructions for setting up a Raspberry Pi as a dedicated Greenside display
 2. Insert the microSD card
 3. In Raspberry Pi Imager:
    - **Device:** select your Pi model (Raspberry Pi 5, 4, etc.)
-   - **OS:** choose **Raspberry Pi OS (other)** → **Raspberry Pi OS Lite (64-bit)**
+   - **OS:** choose **Raspberry Pi OS (other)** > **Raspberry Pi OS Lite (64-bit)**
    - **Storage:** select your microSD card
 4. Click the **gear icon** (or "Edit Settings") to pre-configure:
    - **Hostname:** `greenside-player` (or a name like `clubhouse-tv`)
    - **Enable SSH:** yes, use password authentication
-   - **Username:** `pi`
-   - **Password:** set a strong password
+   - **Username/password:** set a username and strong password
    - **Wi-Fi:** configure SSID and password if not using Ethernet
    - **Locale:** set your timezone and keyboard layout
 5. Click **Write** and wait for it to finish
@@ -242,10 +241,10 @@ Full instructions for setting up a Raspberry Pi as a dedicated Greenside display
 Wait about 60 seconds for first boot, then SSH in:
 
 ```bash
-ssh pi@greenside-player.local
+ssh <user>@greenside-player.local
 ```
 
-> If `.local` doesn't resolve, find the Pi's IP on your router and use `ssh pi@<IP>`.
+> If `.local` doesn't resolve, find the Pi's IP on your router and use `ssh <user>@<IP>`.
 
 Update the system:
 
@@ -285,19 +284,21 @@ If you omit the API URL, the script will prompt you.
 
 ### What the Installer Does
 
-1. Installs minimal X server, Chromium, Docker, unclutter, curl, and jq
+1. Installs cage (Wayland kiosk compositor), Chromium, Docker, curl, and jq
 2. Pulls the `greenside-player` Docker image and starts it on port 8080
 3. **If `--token` provided:**
    - Registers with the cloud (`POST /api/players/register`) using machine ID and hostname
    - Stores player ID and device key in config
    - Installs a heartbeat cron job (every 5 minutes)
    - Passes cloud credentials to the player URL so it can poll for config updates
-4. Creates two systemd services:
-   - `greenside-xserver` — X11 display server (no desktop)
-   - `greenside-kiosk` — Chromium in fullscreen kiosk mode
-5. Disables screen blanking, screensaver, DPMS power management
-6. Hides the mouse cursor
+4. Configures autologin on TTY1
+5. Creates `~/.bash_profile` that launches cage + Chromium in kiosk mode
+6. Disables console blanking via kernel cmdline (`consoleblank=0`)
 7. Writes config to `/opt/greenside-player/config.env`
+
+### How it works
+
+On boot: autologin on TTY1 > `.bash_profile` sources config.env > cage (Wayland compositor) launches > Chromium opens the player in fullscreen kiosk mode. No desktop environment, no window manager, no cursor.
 
 **After install, cloud-registered players:**
 - Report heartbeat every 5 minutes (online/offline status)
@@ -310,7 +311,7 @@ If you omit the API URL, the script will prompt you.
 sudo reboot
 ```
 
-The Pi will boot directly into the fullscreen player. No login, no desktop, no cursor.
+The Pi will boot directly into the fullscreen player. No login prompt, no desktop, no cursor.
 
 ### Post-Install Management
 
@@ -331,42 +332,40 @@ HEARTBEAT_URL=https://...  # present if registered with cloud
 SERVER_URL=https://...     # present if registered with cloud
 ```
 
-Then restart the kiosk:
+Then reboot to apply:
 
 ```bash
-sudo systemctl restart greenside-kiosk
+sudo reboot
 ```
 
 **Update the player to the latest version:**
 
 ```bash
-sudo docker pull ghcr.io/greenside-live/greenside-player:latest
+sudo docker pull ghcr.io/9valleb9/greenside-player:latest
 sudo docker rm -f greenside-player
-sudo docker run -d --name greenside-player --restart unless-stopped -p 8080:80 ghcr.io/greenside-live/greenside-player:latest
+sudo docker run -d --name greenside-player --restart unless-stopped -p 8080:80 ghcr.io/9valleb9/greenside-player:latest
 ```
 
-**View service status:**
+**View status:**
 
 ```bash
-sudo systemctl status greenside-kiosk
-sudo systemctl status greenside-xserver
 sudo docker logs greenside-player
+cat /opt/greenside-player/config.env
 ```
 
 **Rotate the display for a portrait TV:**
 
-Edit `/opt/greenside-player/config.env` and set `ROTATION=90` (or 180, 270), then restart the kiosk service.
+Edit `/opt/greenside-player/config.env` and set `ROTATION=90` (or 180, 270), then reboot.
 
 ### Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
-| Black screen after boot | Check `systemctl status greenside-xserver` — X server may have failed to start. Verify HDMI is connected before boot. |
+| Black screen after boot | Check if cage is starting: `journalctl -b | grep cage`. Verify HDMI is connected before boot. Check `~/.bash_profile` exists and is correct. |
 | Player shows "Stream starting soon" | The stream is offline or the API is unreachable. Verify API_BASE is correct and the edge device is running. |
 | No audio | The player starts muted by default (browser autoplay policy). In web mode, use the unmute button. In kiosk mode, audio is intentionally muted. |
-| Docker pull fails | Check internet connectivity. The Pi needs access to `ghcr.io`. If behind a firewall, build locally: clone the repo and run `docker build -t ghcr.io/greenside-live/greenside-player:latest .` |
-| Cursor visible | Run `sudo systemctl restart greenside-xserver`. Verify unclutter is installed: `which unclutter`. |
-| Screen goes to sleep | Verify `/etc/X11/xorg.conf.d/10-blanking.conf` exists with DPMS disabled. Re-run the installer if missing. |
+| Docker pull fails | Check internet connectivity. The Pi needs access to `ghcr.io`. If behind a firewall, build locally: clone the repo and run `docker build -t ghcr.io/9valleb9/greenside-player:latest .` |
+| Screen goes to sleep | Verify `consoleblank=0` is in `/boot/firmware/cmdline.txt`. Re-run the installer if missing. |
 | Registration failed | Verify the token is valid and hasn't expired. Check cloud URL with `--server`. The player still works in local-only mode if registration fails. |
 | Player not showing in dashboard | Check heartbeat: `sudo /usr/local/bin/greenside-player-heartbeat` and verify `DEVICE_KEY` and `HEARTBEAT_URL` are in config.env. Check cron: `crontab -l`. |
 | Can't reach edge device | The player and edge device must be on the same network. If they're on different networks, use a VPN like [Tailscale](https://tailscale.com/) and use the Tailscale IP as the API URL. |

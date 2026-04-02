@@ -3,8 +3,7 @@
 # Greenside Player — Raspberry Pi Kiosk Installer
 #
 # Downloads the player Docker image from the Greenside cloud and sets up
-# a kiosk that boots directly into fullscreen Chromium pointing at the
-# local container.
+# a kiosk that boots directly into fullscreen Chromium via cage (Wayland).
 #
 # Usage:
 #   sudo bash install.sh [OPTIONS] [API_BASE]
@@ -34,11 +33,11 @@ set -euo pipefail
 PLAYER_IMAGE="ghcr.io/9valleb9/greenside-player:latest"
 PLAYER_CONTAINER="greenside-player"
 PLAYER_PORT=8080
-SERVICE_NAME="greenside-kiosk"
-XSERVICE_NAME="greenside-xserver"
 DEFAULT_API=""
 DEFAULT_SERVER="https://www.greenside.live"
 CONFIG_DIR="/opt/greenside-player"
+INSTALL_USER="${SUDO_USER:-$(whoami)}"
+INSTALL_HOME=$(eval echo "~${INSTALL_USER}")
 
 # --- Parse arguments ---
 TOKEN=""
@@ -86,6 +85,7 @@ if [[ -z "$API_BASE" ]]; then
   API_BASE="${API_BASE%/}"
 fi
 echo "Using API_BASE=$API_BASE"
+echo "Install user: $INSTALL_USER ($INSTALL_HOME)"
 
 if [[ -n "$TOKEN" ]]; then
   echo "Registration token provided — will register with $SERVER_URL"
@@ -97,9 +97,8 @@ fi
 echo "Installing system dependencies..."
 apt-get update -qq
 apt-get install -y -qq \
-  xserver-xorg x11-xserver-utils xinit \
+  cage \
   chromium \
-  unclutter \
   docker.io \
   curl \
   jq \
@@ -109,8 +108,8 @@ apt-get install -y -qq \
 systemctl enable docker
 systemctl start docker
 
-# Add pi user to docker group
-usermod -aG docker pi 2>/dev/null || true
+# Add user to docker group
+usermod -aG docker "$INSTALL_USER" 2>/dev/null || true
 
 # --- Pull and run player container ---
 echo "Pulling Greenside Player image..."
@@ -248,87 +247,54 @@ HEARTBEAT_SCRIPT
   fi
 fi
 
-# --- Create X server systemd service ---
-cat > /etc/systemd/system/${XSERVICE_NAME}.service <<EOF
-[Unit]
-Description=Greenside X Server
-After=systemd-user-sessions.service
-
+# --- Configure autologin on TTY1 ---
+echo "Configuring autologin for $INSTALL_USER..."
+mkdir -p /etc/systemd/system/getty@tty1.service.d
+cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf <<EOF
 [Service]
-Type=simple
-ExecStart=/usr/bin/startx -- -nocursor
-Environment=DISPLAY=:0
-User=pi
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
+ExecStart=
+ExecStart=-/sbin/agetty --autologin ${INSTALL_USER} --noclear %I \$TERM
 EOF
 
-# --- Create kiosk systemd service ---
-cat > /etc/systemd/system/${SERVICE_NAME}.service <<EOF
-[Unit]
-Description=Greenside Player Kiosk
-After=${XSERVICE_NAME}.service docker.service
-Wants=${XSERVICE_NAME}.service
-Requires=docker.service
+# --- Create .bash_profile for cage kiosk ---
+echo "Setting up cage (Wayland) kiosk..."
+cat > "${INSTALL_HOME}/.bash_profile" <<'BASH_PROFILE'
+# Greenside Player kiosk — launch cage + chromium on TTY1
+if [ "$(tty)" = "/dev/tty1" ]; then
+  source /opt/greenside-player/config.env 2>/dev/null
+  export XDG_RUNTIME_DIR=/run/user/$(id -u)
+  mkdir -p "$XDG_RUNTIME_DIR"
+  exec cage -s -- chromium \
+    --kiosk \
+    --noerrdialogs \
+    --disable-infobars \
+    --disable-translate \
+    --disable-features=TranslateUI \
+    --no-first-run \
+    --no-default-browser-check \
+    --disable-session-crashed-bubble \
+    --disable-component-update \
+    --autoplay-policy=no-user-gesture-required \
+    --check-for-update-interval=31536000 \
+    "http://localhost:${PLAYER_PORT:-8080}?api=${API_BASE}&mode=${MODE:-kiosk}&rotate=${ROTATION:-0}&server=${SERVER_URL:-}&playerId=${PLAYER_ID:-}&deviceKey=${DEVICE_KEY:-}"
+fi
+BASH_PROFILE
+chown "${INSTALL_USER}:${INSTALL_USER}" "${INSTALL_HOME}/.bash_profile"
 
-[Service]
-Type=simple
-Environment=DISPLAY=:0
-EnvironmentFile=${CONFIG_DIR}/config.env
-ExecStartPre=/bin/sleep 5
-ExecStart=/usr/bin/chromium \\
-  --kiosk \\
-  --noerrdialogs \\
-  --disable-infobars \\
-  --disable-translate \\
-  --disable-features=TranslateUI \\
-  --no-first-run \\
-  --no-default-browser-check \\
-  --disable-session-crashed-bubble \\
-  --disable-component-update \\
-  --autoplay-policy=no-user-gesture-required \\
-  --check-for-update-interval=31536000 \\
-  "http://localhost:\${PLAYER_PORT}?api=\${API_BASE}&mode=\${MODE}&rotate=\${ROTATION}&server=\${SERVER_URL:-}&playerId=\${PLAYER_ID:-}&deviceKey=\${DEVICE_KEY:-}"
-User=pi
-Restart=on-failure
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# --- Disable screen blanking ---
-echo "Disabling screen blanking and power management..."
-mkdir -p /etc/X11/xorg.conf.d
-cat > /etc/X11/xorg.conf.d/10-blanking.conf <<EOF
-Section "ServerFlags"
-  Option "BlankTime"  "0"
-  Option "StandbyTime" "0"
-  Option "SuspendTime" "0"
-  Option "OffTime"     "0"
-  Option "DPMS"        "false"
-EndSection
-EOF
-
-# --- Hide cursor ---
-mkdir -p /home/pi/.config/autostart
-cat > /home/pi/.config/autostart/unclutter.desktop <<EOF
-[Desktop Entry]
-Type=Application
-Name=Unclutter
-Exec=unclutter -idle 0
-Hidden=false
-EOF
-chown -R pi:pi /home/pi/.config
-
-# --- Enable services ---
-echo "Enabling services..."
-systemctl daemon-reload
-systemctl enable ${XSERVICE_NAME}.service
-systemctl enable ${SERVICE_NAME}.service
+# --- Disable console blanking ---
+echo "Disabling console blanking..."
+CMDLINE_FILE="/boot/firmware/cmdline.txt"
+if [[ -f "$CMDLINE_FILE" ]]; then
+  if ! grep -q "consoleblank=0" "$CMDLINE_FILE"; then
+    sed -i 's/$/ consoleblank=0/' "$CMDLINE_FILE"
+  fi
+else
+  # Fallback for older Pi OS layout
+  CMDLINE_FILE="/boot/cmdline.txt"
+  if [[ -f "$CMDLINE_FILE" ]] && ! grep -q "consoleblank=0" "$CMDLINE_FILE"; then
+    sed -i 's/$/ consoleblank=0/' "$CMDLINE_FILE"
+  fi
+fi
 
 echo ""
 echo "========================================="
@@ -337,6 +303,7 @@ echo ""
 echo "  API:       $API_BASE"
 echo "  Player:    http://localhost:$PLAYER_PORT"
 echo "  Container: $PLAYER_CONTAINER"
+echo "  Kiosk:     cage (Wayland) via autologin on TTY1"
 if [[ -n "$PLAYER_ID" ]]; then
 echo "  Player ID: $PLAYER_ID"
 echo "  Cloud:     $SERVER_URL"
@@ -354,5 +321,5 @@ echo "    docker restart $PLAYER_CONTAINER"
 echo ""
 echo "  To change config:"
 echo "    sudo nano $CONFIG_DIR/config.env"
-echo "    sudo systemctl restart $SERVICE_NAME"
+echo "    sudo reboot"
 echo "========================================="
