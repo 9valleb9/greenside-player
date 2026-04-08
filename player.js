@@ -252,6 +252,10 @@
     if (data.leaderboardVisible && data.leaderboard) {
       $leaderboard.classList.remove('hidden');
       updateLeaderboard(data.leaderboard);
+      // Apply configurable scale (default 1)
+      var scale = parseFloat(data.leaderboardScale) || 1;
+      $leaderboard.style.transform = scale !== 1 ? 'scale(' + scale + ')' : '';
+      $leaderboard.style.transformOrigin = 'bottom left';
     } else {
       $leaderboard.classList.add('hidden');
     }
