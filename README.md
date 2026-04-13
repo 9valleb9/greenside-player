@@ -22,7 +22,7 @@ Universal viewer for golf course live streams. Displays HLS video with tournamen
 
 - **HLS.js video playback** — low-latency live stream with auto-reconnect
 - **Tournament overlay** — name and current hole (top left)
-- **Leaderboard ticker** — scrolling horizontal ticker at bottom (broadcast-style)
+- **Leaderboard ticker** — scrolling horizontal ticker at bottom (broadcast-style, configurable scale)
 - **Sponsor rotation** — rotating sponsor bar with text and optional logo
 - **Active team overlay** — team name, hole, and members (top right)
 - **Offline standby screen** — branded holding card with Greenside logo and pulse animation
@@ -140,6 +140,7 @@ If `apiTarget` changes, the player switches to the new origin live — no reboot
     "currentHole": "3",
     "leaderboard": "McIlroy (-11), Rose (-11), Reed (-9), Scheffler (-8)",
     "leaderboardVisible": true,
+    "leaderboardScale": 1,
     "sponsorsVisible": true,
     "sponsors": [
       { "text": "MLAB", "logo": null }
@@ -374,3 +375,4 @@ Edit `/opt/greenside-player/config.env` and set `ROTATION=90` (or 180, 270), the
 
 - [greenside-live](https://github.com/9valleb9/greenside-live) — Cloud backend and dashboard
 - [greenside-mobile](https://github.com/9valleb9/greenside-mobile) — iOS/Android app
+- [greensidelive-streamer](https://github.com/9valleb9/greensidelive-streamer) — Edge device streamer (Node.js, FFmpeg, NDI, Docker)
