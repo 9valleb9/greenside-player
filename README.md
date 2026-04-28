@@ -302,9 +302,12 @@ If you omit the API URL, the script will prompt you.
 On boot: autologin on TTY1 > `.bash_profile` sources config.env > cage (Wayland compositor) launches > Chromium opens the player in fullscreen kiosk mode. No desktop environment, no window manager, no cursor.
 
 **After install, cloud-registered players:**
-- Report heartbeat every 5 minutes (online/offline status)
-- Poll for config every 60 seconds (which origin to connect to, mode, rotation)
-- Can be reassigned to a different origin from the cloud dashboard — no SSH or reboot needed
+- Report heartbeat every 5 minutes — installed at `/usr/local/bin/greenside-player-heartbeat` and run by cron. Hits `POST /api/players/[id]/heartbeat`. Cloud online window: 15 minutes.
+- Poll for config every 60 seconds (which origin to connect to, mode, rotation) via `GET /api/players/[id]/config`.
+- Show as a `PLAYER_KIOSK` row on the cloud's **Site Infrastructure** page alongside the streaming origin. Health badges are independent — the kiosk can be offline while the origin is healthy and vice versa.
+- Can be reassigned to a different origin from the cloud dashboard — no SSH or reboot needed.
+
+To debug heartbeat manually: `sudo /usr/local/bin/greenside-player-heartbeat` (config lives in `/opt/greenside-player/config.env`).
 
 ### Step 4: Reboot
 
