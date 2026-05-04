@@ -21,6 +21,8 @@
   let apiBase  = (params.get('api') || 'http://localhost:3000').replace(/\/+$/, '');
   let mode     = params.get('mode') || 'kiosk';
   let rotation = parseInt(params.get('rotate') || '0', 10);
+  let displayMode = params.get('displayMode') || 'live_stream';
+  let parimutuelPoolId = params.get('poolId') || null;
 
   const isRegistered = !!(SERVER_URL && PLAYER_ID && DEVICE_KEY);
 
@@ -45,6 +47,19 @@
   const $btnMute        = document.getElementById('btn-mute');
   const $btnFullscreen  = document.getElementById('btn-fullscreen');
 
+  // Tote board (parimutuel monitor mode)
+  const $tote           = document.getElementById('tote-board');
+  const $toteEventName  = document.getElementById('tote-event-name');
+  const $toteStatus     = document.getElementById('tote-status');
+  const $toteCountdown  = document.getElementById('tote-countdown-value');
+  const $toteWinPool    = document.getElementById('tote-win-pool');
+  const $totePlacePool  = document.getElementById('tote-place-pool');
+  const $toteShowPool   = document.getElementById('tote-show-pool');
+  const $toteTotalPool  = document.getElementById('tote-total-pool');
+  const $toteGridBody   = document.getElementById('tote-grid-body');
+  const $toteMarquee    = document.getElementById('tote-marquee-content');
+  const $videoContainer = document.getElementById('video-container');
+
   // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
@@ -54,6 +69,14 @@
   let sponsorIndex = 0;
   let sponsors = [];
   let sponsorTimer = null;
+  let streamTimer = null;
+
+  // Tote-board state
+  let toteTimer = null;
+  let totePrevOdds = { win: {}, place: {}, show: {} };
+  let totePrevPools = { win: 0, place: 0, show: 0, total: 0 };
+  let toteSeenBetIds = new Set();
+  let toteRefreshIn = 5;
 
   // ---------------------------------------------------------------------------
   // Init
@@ -61,16 +84,27 @@
   function init() {
     applyMode(mode);
     applyRotation(rotation);
+    // applyDisplayMode owns starting the right polling loop.
+    applyDisplayMode(displayMode);
 
     // If registered with cloud, poll for config
     if (isRegistered) {
       pollConfig();
       setInterval(pollConfig, CONFIG_POLL_INTERVAL);
     }
+  }
 
-    // Start stream/display polling
+  function startStreamTimer() {
+    stopStreamTimer();
     pollStream();
-    setInterval(pollStream, STREAM_POLL_INTERVAL);
+    streamTimer = setInterval(pollStream, STREAM_POLL_INTERVAL);
+  }
+
+  function stopStreamTimer() {
+    if (streamTimer) {
+      clearInterval(streamTimer);
+      streamTimer = null;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -110,6 +144,62 @@
     if (data.rotation != null && data.rotation !== rotation) {
       rotation = parseInt(data.rotation, 10);
       applyRotation(rotation);
+    }
+
+    // Display mode (live_stream / parimutuel_monitor) — switches the
+    // whole kiosk view + which polling loop is running.
+    if (data.displayMode && data.displayMode !== displayMode) {
+      displayMode = data.displayMode;
+      applyDisplayMode(displayMode);
+    }
+
+    // Pool ID — if the same kiosk gets reassigned to a different pool
+    // (e.g. start of a new event), reset the diff state and force a
+    // fresh tote fetch.
+    if (data.parimutuelPoolId != null && data.parimutuelPoolId !== parimutuelPoolId) {
+      parimutuelPoolId = data.parimutuelPoolId;
+      totePrevOdds = { win: {}, place: {}, show: {} };
+      totePrevPools = { win: 0, place: 0, show: 0, total: 0 };
+      toteSeenBetIds.clear();
+      if (displayMode === 'parimutuel_monitor') {
+        pollTote();
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Display mode switching
+  // ---------------------------------------------------------------------------
+  function applyDisplayMode(m) {
+    if (m === 'parimutuel_monitor') {
+      // Tear down live stream
+      stopStreamTimer();
+      destroyPlayback();
+      $offline.classList.add('hidden');
+      $overlays.classList.add('hidden');
+      if ($videoContainer) $videoContainer.classList.add('hidden');
+      // Show tote board
+      $tote.classList.remove('hidden');
+      // Start tote polling (immediate + interval)
+      stopToteTimer();
+      pollTote();
+      toteTimer = setInterval(pollTote, toteRefreshIn * 1000);
+    } else {
+      // Switch back to live stream
+      stopToteTimer();
+      $tote.classList.add('hidden');
+      if ($videoContainer) $videoContainer.classList.remove('hidden');
+      // Reveal offline screen until pollStream confirms live
+      $offline.classList.remove('hidden', 'fade-out');
+      // Start live polling (also restarts after a tote → live switch)
+      startStreamTimer();
+    }
+  }
+
+  function stopToteTimer() {
+    if (toteTimer) {
+      clearInterval(toteTimer);
+      toteTimer = null;
     }
   }
 
@@ -316,6 +406,249 @@
       $sponsorLogo.classList.add('hidden');
     }
     sponsorIndex++;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Parimutuel tote board polling + render
+  // ---------------------------------------------------------------------------
+  async function pollTote() {
+    if (!parimutuelPoolId || !SERVER_URL) {
+      renderToteEmpty('Awaiting pool assignment…');
+      return;
+    }
+    try {
+      const res = await fetch(SERVER_URL + '/api/parimutuel/tv/' + parimutuelPoolId);
+      if (!res.ok) {
+        renderToteEmpty('Pool not found');
+        return;
+      }
+      const json = await res.json();
+      if (!json || !json.success) return;
+      renderTote(json.data);
+      // Honor the cloud's refresh hint (default 5 s). Only restart timer
+      // if it's actually changed.
+      if (json.data.refreshIn && json.data.refreshIn !== toteRefreshIn) {
+        toteRefreshIn = json.data.refreshIn;
+        stopToteTimer();
+        toteTimer = setInterval(pollTote, toteRefreshIn * 1000);
+      }
+    } catch (_err) {
+      // Silent — keep last frame
+    }
+  }
+
+  function renderToteEmpty(msg) {
+    $toteEventName.textContent = msg || 'No active pool';
+    $toteStatus.textContent = '—';
+    $toteStatus.className = 'tote-status tote-status-draft';
+    $toteCountdown.textContent = '—';
+    $toteWinPool.textContent = '$0';
+    $totePlacePool.textContent = '$0';
+    $toteShowPool.textContent = '$0';
+    $toteTotalPool.textContent = '$0';
+    $toteGridBody.innerHTML = '<div class="tote-empty">' + esc(msg || 'No active pool') + '</div>';
+  }
+
+  function renderTote(data) {
+    const h = data.header || {};
+    const o = data.odds || {};
+    const r = data.recentActivity || [];
+    const stats = data.stats || {};
+
+    // Header
+    $toteEventName.textContent = h.eventName || '—';
+    setStatus(h.poolStatus);
+    setCountdown(h.countdown);
+
+    // Pool totals — flash green when they grow
+    flashPoolIfGrew($toteWinPool.parentElement,    'win',   h.winPoolTotal);
+    flashPoolIfGrew($totePlacePool.parentElement,  'place', h.placePoolTotal);
+    flashPoolIfGrew($toteShowPool.parentElement,   'show',  h.showPoolTotal);
+    flashPoolIfGrew($toteTotalPool.parentElement,  'total', h.totalPool);
+    $toteWinPool.textContent   = fmtMoney(h.winPoolTotal);
+    $totePlacePool.textContent = fmtMoney(h.placePoolTotal);
+    $toteShowPool.textContent  = fmtMoney(h.showPoolTotal);
+    $toteTotalPool.textContent = fmtMoney(h.totalPool);
+
+    // Grid — union of teams across W/P/S so every team gets one row
+    const teamMap = new Map();
+    for (const bt of ['win', 'place', 'show']) {
+      const teams = (o[bt] && o[bt].teams) || [];
+      for (const t of teams) {
+        const cur = teamMap.get(t.teamId) || {
+          teamId: t.teamId,
+          teamNumber: t.teamNumber,
+          teamName: t.teamName,
+          playerNames: t.playerNames,
+          win: null, place: null, show: null,
+        };
+        cur[bt] = t;
+        teamMap.set(t.teamId, cur);
+      }
+    }
+    const teams = Array.from(teamMap.values()).sort(byTeamNumber);
+
+    // Determine favorite — lowest win odds = most popular = "hot"
+    let favoriteId = null;
+    let lowestOdds = Infinity;
+    for (const t of teams) {
+      if (t.win && typeof t.win.decimalOdds === 'number' && t.win.decimalOdds < lowestOdds) {
+        lowestOdds = t.win.decimalOdds;
+        favoriteId = t.teamId;
+      }
+    }
+
+    // Render grid (rebuild on each tick — small N, simpler than DOM diffing)
+    $toteGridBody.innerHTML = teams.map((t) => renderRow(t, favoriteId)).join('');
+
+    // Apply per-cell flash classes for movement (server already computed
+    // .movement = 'up' | 'down' | 'stable' on each TeamOdds entry).
+    for (const t of teams) {
+      for (const bt of ['win', 'place', 'show']) {
+        const odds = t[bt];
+        if (!odds) continue;
+        const prev = totePrevOdds[bt][t.teamId];
+        if (prev != null && prev !== odds.decimalOdds) {
+          // odds shortened (number went down) → more popular → green
+          // odds lengthened (number went up) → less popular → red
+          const dir = odds.decimalOdds < prev ? 'flash-up' : 'flash-down';
+          flashCell(t.teamId, bt, dir);
+        }
+        totePrevOdds[bt][t.teamId] = odds.decimalOdds;
+      }
+    }
+
+    // Recent activity → marquee. Keep growing the marquee but cap at
+    // ~30 entries to avoid runaway DOM.
+    if (r.length) {
+      const newBets = r.filter((b) => !toteSeenBetIds.has(b.id)).reverse();
+      for (const bet of newBets) toteSeenBetIds.add(bet.id);
+      if (newBets.length) {
+        const html = newBets.map(renderMarqueeBet).join('');
+        $toteMarquee.innerHTML = (html + $toteMarquee.innerHTML).slice(0, 8000);
+      }
+      if (toteSeenBetIds.size > 200) {
+        // Trim memory — keep recent 200
+        toteSeenBetIds = new Set(Array.from(toteSeenBetIds).slice(-200));
+      }
+    }
+
+    // Popular pick footer line in marquee (always present)
+    if (stats.popularPick && !$toteMarquee.querySelector('.tote-marquee-popular')) {
+      const txt =
+        '<span class="tote-marquee-bet tote-marquee-popular">🔥 HOT PICK · <b>' +
+        esc(stats.popularPick.teamName) + '</b> ' + esc(stats.popularPick.betType) +
+        ' · ' + stats.popularPick.betCount + ' bets</span>';
+      $toteMarquee.innerHTML = txt + $toteMarquee.innerHTML;
+    }
+  }
+
+  function renderRow(t, favoriteId) {
+    const isFav = t.teamId === favoriteId;
+    const players = (t.playerNames || []).join(' & ');
+    return (
+      '<div class="tote-row' + (isFav ? ' is-favorite' : '') + '" data-team="' + esc(t.teamId) + '">' +
+        '<div class="tote-row-team">' +
+          '<span class="tote-row-team-num">TEAM #' + (t.teamNumber || '?') + '</span>' +
+          '<span class="tote-row-team-name">' + esc(t.teamName || ('Team ' + t.teamNumber)) + '</span>' +
+          (players ? '<span class="tote-row-team-players">' + esc(players) + '</span>' : '') +
+        '</div>' +
+        renderOddsCell(t.win,   t.teamId, 'win') +
+        renderOddsCell(t.place, t.teamId, 'place') +
+        renderOddsCell(t.show,  t.teamId, 'show') +
+        '<div class="tote-row-share">' +
+          '<div class="tote-row-share-bar" style="width:' + Math.round(((t.win && t.win.percentageOfPool) || 0) * 100) + 'px"></div>' +
+          '<div class="tote-row-share-value">' + Math.round(((t.win && t.win.percentageOfPool) || 0) * 100) + '%</div>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function renderOddsCell(odds, teamId, bt) {
+    if (!odds) {
+      return '<div class="tote-row-odds" data-team="' + esc(teamId) + '" data-bt="' + bt + '">' +
+               '<div class="tote-row-odds-value">—</div>' +
+             '</div>';
+    }
+    const arrow = odds.movement === 'up'   ? '▲'
+                : odds.movement === 'down' ? '▼'
+                : '';
+    return '<div class="tote-row-odds" data-team="' + esc(teamId) + '" data-bt="' + bt + '">' +
+             '<div class="tote-row-odds-value">' + esc(odds.fractionalOdds || '—') + '</div>' +
+             '<div class="tote-row-odds-decimal">' + (odds.decimalOdds ? odds.decimalOdds.toFixed(2) : '') + '</div>' +
+             (arrow ? '<div class="tote-row-odds-arrow">' + arrow + '</div>' : '') +
+           '</div>';
+  }
+
+  function renderMarqueeBet(bet) {
+    return '<span class="tote-marquee-bet">' +
+             '<b>' + esc(bet.bettorName || 'Anonymous') + '</b> ' +
+             '<span class="amt">$' + Math.round(bet.amount || 0) + '</span> on ' +
+             '<b>' + esc(bet.teamName || '—') + '</b> to ' +
+             esc(String(bet.betType || '').toUpperCase()) +
+             ' @ ' + esc(bet.odds || '—') +
+           '</span>';
+  }
+
+  function setStatus(status) {
+    const s = (status || 'OPEN').toUpperCase();
+    $toteStatus.textContent = s === 'OPEN' ? 'OPEN' : s;
+    $toteStatus.className = 'tote-status ' +
+      (s === 'OPEN' ? 'tote-status-open'
+      : s === 'CLOSED' || s === 'SETTLING' ? 'tote-status-closing'
+      : s === 'CANCELLED' ? 'tote-status-closed'
+      : s === 'SETTLED' ? 'tote-status-settled'
+      : 'tote-status-draft');
+  }
+
+  function setCountdown(seconds) {
+    if (seconds == null) {
+      $toteCountdown.textContent = '—';
+      $toteCountdown.classList.remove('urgent');
+      return;
+    }
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    $toteCountdown.textContent = m + ':' + String(s).padStart(2, '0');
+    $toteCountdown.classList.toggle('urgent', seconds <= 60);
+  }
+
+  function flashCell(teamId, bt, cls) {
+    // Set on next paint so the freshly-rendered row picks up the class.
+    requestAnimationFrame(() => {
+      const sel = '.tote-row[data-team="' + cssEscape(teamId) + '"] .tote-row-odds[data-bt="' + bt + '"]';
+      const el = $toteGridBody.querySelector(sel);
+      if (!el) return;
+      el.classList.remove('flash-up', 'flash-down');
+      // force reflow so re-applied animation restarts
+      void el.offsetWidth;
+      el.classList.add(cls);
+      setTimeout(() => el.classList.remove(cls), 700);
+    });
+  }
+
+  function flashPoolIfGrew(poolEl, key, newVal) {
+    const prev = totePrevPools[key] || 0;
+    if (newVal > prev + 0.01) {
+      poolEl.classList.remove('flash-up');
+      void poolEl.offsetWidth;
+      poolEl.classList.add('flash-up');
+      setTimeout(() => poolEl.classList.remove('flash-up'), 700);
+    }
+    totePrevPools[key] = newVal;
+  }
+
+  function fmtMoney(n) {
+    const v = Math.round(n || 0);
+    return '$' + v.toLocaleString('en-US');
+  }
+
+  function byTeamNumber(a, b) {
+    return (a.teamNumber || 0) - (b.teamNumber || 0);
+  }
+
+  function cssEscape(s) {
+    return String(s).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
   }
 
   // ---------------------------------------------------------------------------

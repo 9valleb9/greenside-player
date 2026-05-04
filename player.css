@@ -309,3 +309,386 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   .logo-player { font-size: 12px; letter-spacing: 6px; }
   #offline-message { font-size: 14px; }
 }
+
+/* ==========================================================================
+   Parimutuel Tote Board
+   Vegas-style live odds display. Activated when player.displayMode is
+   'parimutuel_monitor'. The board polls /api/parimutuel/tv/[poolId] every
+   refreshIn seconds and animates per-row movement.
+   ========================================================================== */
+
+#tote-board {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(ellipse at top, #11253f 0%, #0a1628 60%, #050a14 100%);
+  color: #e6ecf5;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  z-index: 30;
+  overflow: hidden;
+}
+
+/* Header strip ------------------------------------------------------------ */
+
+.tote-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 40px;
+  border-bottom: 2px solid rgba(0, 255, 136, 0.2);
+  background: linear-gradient(180deg, rgba(0, 255, 136, 0.05) 0%, transparent 100%);
+}
+
+.tote-event-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+
+.tote-event-label {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: #00ff88;
+}
+
+.tote-status {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  background: #00ff88;
+  color: #0a1628;
+  animation: pulse-status 2s ease-in-out infinite;
+}
+
+.tote-status-closing { background: #ffb700; color: #0a1628; }
+.tote-status-closed  { background: #ff3b30; color: #fff; }
+.tote-status-settled { background: #4aa3ff; color: #0a1628; }
+.tote-status-draft   { background: #6b7280; color: #fff; animation: none; }
+
+.tote-event h1 {
+  margin: 0;
+  font-size: 56px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  line-height: 1;
+}
+
+.tote-countdown {
+  text-align: right;
+}
+
+.tote-countdown-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: #9aa5b8;
+  margin-bottom: 4px;
+}
+
+#tote-countdown-value {
+  font-family: 'Courier New', monospace;
+  font-size: 64px;
+  font-weight: 800;
+  color: #ffb700;
+  letter-spacing: 2px;
+  line-height: 1;
+}
+
+#tote-countdown-value.urgent {
+  color: #ff3b30;
+  animation: pulse-urgent 1s ease-in-out infinite;
+}
+
+/* Pool totals strip ------------------------------------------------------- */
+
+.tote-pools {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1.4fr;
+  gap: 2px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.08);
+}
+
+.tote-pool {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.tote-pool-total {
+  background: linear-gradient(135deg, #00cc6a 0%, #00ff88 100%);
+  color: #0a1628;
+}
+
+.tote-pool-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: #9aa5b8;
+  text-transform: uppercase;
+}
+
+.tote-pool-total .tote-pool-label { color: #0a1628; opacity: 0.7; }
+
+.tote-pool-value {
+  font-family: 'Courier New', monospace;
+  font-size: 38px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  transition: background 600ms ease-out;
+}
+
+.tote-pool.flash-up    { background: rgba(0, 255, 136, 0.25); transition: background 200ms ease-in; }
+.tote-pool.flash-up.tote-pool-total { background: linear-gradient(135deg, #00ff88 0%, #aaffcc 100%); }
+
+/* Main odds grid ---------------------------------------------------------- */
+
+.tote-grid {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 16px 40px;
+}
+
+.tote-grid-header {
+  display: grid;
+  grid-template-columns: 2.5fr 1fr 1fr 1fr 1fr;
+  padding: 12px 0;
+  border-bottom: 2px solid rgba(0, 255, 136, 0.4);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 4px;
+  color: #9aa5b8;
+}
+
+.tote-col-team   { text-align: left;  padding-left: 16px; }
+.tote-col-odds   { text-align: center; }
+.tote-col-share  { text-align: right; padding-right: 16px; }
+
+.tote-grid-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.tote-row {
+  display: grid;
+  grid-template-columns: 2.5fr 1fr 1fr 1fr 1fr;
+  align-items: center;
+  padding: 16px 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  transition: background 600ms ease-out, border-color 600ms ease-out;
+  border: 2px solid transparent;
+}
+
+.tote-row.is-favorite {
+  background: linear-gradient(90deg, rgba(0, 255, 136, 0.12) 0%, rgba(0, 255, 136, 0.04) 100%);
+  border-color: rgba(0, 255, 136, 0.4);
+}
+
+.tote-row-team {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 16px;
+}
+
+.tote-row-team-num {
+  font-size: 14px;
+  font-weight: 800;
+  color: #9aa5b8;
+  letter-spacing: 2px;
+}
+
+.tote-row-team-name {
+  font-size: 26px;
+  font-weight: 800;
+  color: #e6ecf5;
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+
+.tote-row.is-favorite .tote-row-team-num   { color: #00ff88; }
+.tote-row.is-favorite .tote-row-team-name  { color: #00ff88; }
+
+.tote-row-team-players {
+  font-size: 13px;
+  color: #677488;
+  letter-spacing: 0.3px;
+}
+
+.tote-row-odds {
+  text-align: center;
+  position: relative;
+  padding: 8px 4px;
+  border-radius: 6px;
+  transition: background 600ms ease-out, color 600ms ease-out;
+}
+
+.tote-row-odds-value {
+  font-family: 'Courier New', monospace;
+  font-size: 32px;
+  font-weight: 800;
+  color: #e6ecf5;
+  line-height: 1;
+}
+
+.tote-row-odds-decimal {
+  font-size: 11px;
+  color: #677488;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+.tote-row-odds-arrow {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  font-weight: 800;
+  opacity: 0.6;
+}
+
+.tote-row-odds.flash-up {
+  background: rgba(0, 255, 136, 0.22);
+  color: #00ff88;
+  animation: cell-flash-up 600ms ease-out;
+}
+.tote-row-odds.flash-up   .tote-row-odds-value { color: #00ff88; }
+.tote-row-odds.flash-up   .tote-row-odds-arrow { color: #00ff88; opacity: 1; }
+
+.tote-row-odds.flash-down {
+  background: rgba(255, 59, 48, 0.18);
+  color: #ff3b30;
+  animation: cell-flash-down 600ms ease-out;
+}
+.tote-row-odds.flash-down .tote-row-odds-value { color: #ff3b30; }
+.tote-row-odds.flash-down .tote-row-odds-arrow { color: #ff3b30; opacity: 1; }
+
+.tote-row-share {
+  text-align: right;
+  padding-right: 16px;
+}
+
+.tote-row-share-bar {
+  display: inline-block;
+  height: 6px;
+  background: linear-gradient(90deg, #00ff88 0%, #00cc6a 100%);
+  border-radius: 3px;
+  margin-bottom: 6px;
+  vertical-align: middle;
+  transition: width 800ms ease-out;
+}
+
+.tote-row-share-value {
+  font-family: 'Courier New', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: #c4ccd9;
+}
+
+/* Bottom marquee ---------------------------------------------------------- */
+
+.tote-marquee {
+  display: flex;
+  align-items: center;
+  height: 56px;
+  background: linear-gradient(90deg, rgba(0, 255, 136, 0.1) 0%, transparent 6%, transparent 100%);
+  border-top: 2px solid rgba(0, 255, 136, 0.3);
+  overflow: hidden;
+}
+
+.tote-marquee-label {
+  flex-shrink: 0;
+  padding: 0 24px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 4px;
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.15);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  border-right: 2px solid rgba(0, 255, 136, 0.3);
+}
+
+.tote-marquee-track {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.tote-marquee-content {
+  display: inline-block;
+  white-space: nowrap;
+  padding-left: 100%;
+  animation: marquee-scroll 60s linear infinite;
+  font-size: 18px;
+  letter-spacing: 0.5px;
+  line-height: 56px;
+}
+
+.tote-marquee-bet {
+  display: inline-block;
+  margin-right: 48px;
+  color: #c4ccd9;
+}
+
+.tote-marquee-bet b { color: #00ff88; }
+.tote-marquee-bet .amt { color: #ffb700; font-weight: 700; }
+
+/* Empty state ------------------------------------------------------------- */
+
+.tote-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #677488;
+  font-size: 24px;
+  letter-spacing: 1px;
+}
+
+/* Animations -------------------------------------------------------------- */
+
+@keyframes pulse-status {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.7; }
+}
+
+@keyframes pulse-urgent {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.85; transform: scale(1.04); }
+}
+
+@keyframes cell-flash-up {
+  0%   { background: rgba(0, 255, 136, 0.55); transform: scale(1.04); }
+  100% { background: rgba(0, 255, 136, 0.22); transform: scale(1); }
+}
+
+@keyframes cell-flash-down {
+  0%   { background: rgba(255, 59, 48, 0.45); transform: scale(1.04); }
+  100% { background: rgba(255, 59, 48, 0.18); transform: scale(1); }
+}
+
+@keyframes marquee-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}

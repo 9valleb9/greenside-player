@@ -43,6 +43,64 @@
     </div>
   </div>
 
+  <!-- Parimutuel Tote Board (alternate display mode) -->
+  <div id="tote-board" class="hidden">
+    <!-- Top strip: event name + status + countdown -->
+    <div class="tote-header">
+      <div class="tote-event">
+        <div class="tote-event-meta">
+          <span class="tote-event-label">PICKS POOL</span>
+          <span id="tote-status" class="tote-status tote-status-open">OPEN</span>
+        </div>
+        <h1 id="tote-event-name">—</h1>
+      </div>
+      <div class="tote-countdown">
+        <div class="tote-countdown-label">CLOSES IN</div>
+        <div id="tote-countdown-value">—</div>
+      </div>
+    </div>
+
+    <!-- Pool totals strip -->
+    <div class="tote-pools">
+      <div class="tote-pool" data-pool="win">
+        <span class="tote-pool-label">WIN</span>
+        <span id="tote-win-pool" class="tote-pool-value">$0</span>
+      </div>
+      <div class="tote-pool" data-pool="place">
+        <span class="tote-pool-label">PLACE</span>
+        <span id="tote-place-pool" class="tote-pool-value">$0</span>
+      </div>
+      <div class="tote-pool" data-pool="show">
+        <span class="tote-pool-label">SHOW</span>
+        <span id="tote-show-pool" class="tote-pool-value">$0</span>
+      </div>
+      <div class="tote-pool tote-pool-total" data-pool="total">
+        <span class="tote-pool-label">TOTAL POOL</span>
+        <span id="tote-total-pool" class="tote-pool-value">$0</span>
+      </div>
+    </div>
+
+    <!-- Main odds grid -->
+    <div class="tote-grid">
+      <div class="tote-grid-header">
+        <div class="tote-col tote-col-team">TEAM</div>
+        <div class="tote-col tote-col-odds">WIN</div>
+        <div class="tote-col tote-col-odds">PLACE</div>
+        <div class="tote-col tote-col-odds">SHOW</div>
+        <div class="tote-col tote-col-share">% POOL</div>
+      </div>
+      <div id="tote-grid-body" class="tote-grid-body"></div>
+    </div>
+
+    <!-- Bottom marquee: recent bets -->
+    <div class="tote-marquee">
+      <div class="tote-marquee-label">RECENT</div>
+      <div class="tote-marquee-track">
+        <div id="tote-marquee-content" class="tote-marquee-content"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Offline / Standby Screen -->
   <div id="offline-screen">
     <div id="offline-content">
