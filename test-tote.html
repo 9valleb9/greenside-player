@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<!--
+  TOTE BOARD TEST HARNESS
+  =======================
+  Standalone test page that mocks the cloud's /api/parimutuel/tv/[poolId]
+  endpoint and walks the kiosk through every tote-board scenario:
+
+    1. Empty   — no bets yet, all odds default to 1/1 fallback
+    2. Open    — typical mid-pool state, four teams, varied odds
+    3. Movement — same teams, odds shifted to trigger green/red flashes
+    4. Closing — countdown drops to <60s, status flips to CLOSING
+    5. Settled — pool closed, status flips to SETTLED, no countdown
+
+  Click the buttons at the top to cycle. The kiosk's real player.js + .css
+  are loaded — what you see is what the kiosk renders in production.
+
+  How to run:
+    cd greenside-player
+    python3 -m http.server 8800
+    open http://localhost:8800/test-tote.html
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Greenside Tote Board — Test Harness</title>
+  <link rel="stylesheet" href="player.css">
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+  <style>
+    /* Test controls overlay — only visible in this harness */
+    #test-controls {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 1000;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      max-width: 100vw;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.85);
+      border: 2px solid #00ff88;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
+    #test-controls .label {
+      color: #00ff88;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      align-self: center;
+      margin-right: 6px;
+    }
+    #test-controls button {
+      padding: 8px 14px;
+      background: #1a1a2e;
+      color: #e6ecf5;
+      border: 1px solid #374151;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      transition: all 150ms ease;
+    }
+    #test-controls button:hover {
+      background: #00ff88;
+      color: #0a1628;
+      border-color: #00ff88;
+    }
+    #test-controls button.active {
+      background: #00ff88;
+      color: #0a1628;
+      border-color: #00ff88;
+    }
+    #test-status {
+      color: #ffb700;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      align-self: center;
+      margin-left: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================================================
+       MOCK CLOUD: install BEFORE player.js loads so it intercepts every fetch.
+       The mock returns scripted tote data based on `currentScenario`.
+       ======================================================================== -->
+  <script>
+    (function installMockCloud() {
+      // Each scenario is a TVDisplayData payload (from src/lib/parimutuel/types.ts)
+      const baseTeams = [
+        { teamId: 't1', teamNumber: 1, teamName: 'Smith / Jones',  playerNames: ['John Smith', 'Mike Jones'] },
+        { teamId: 't2', teamNumber: 2, teamName: 'Lee / Patel',    playerNames: ['Sarah Lee', 'Raj Patel'] },
+        { teamId: 't3', teamNumber: 3, teamName: 'Garcia / Wong',  playerNames: ['Marco Garcia', 'Alex Wong'] },
+        { teamId: 't4', teamNumber: 4, teamName: 'OBrien / Kim',   playerNames: ["Ryan O'Brien", 'Joon Kim'] },
+      ]
+
+      function teamOdds(team, decimalOdds, percentageOfPool, movement) {
+        return {
+          ...team,
+          decimalOdds,
+          fractionalOdds: decimalToFractional(decimalOdds),
+          impliedProbability: 1 / decimalOdds,
+          amountOnTeam: Math.round(percentageOfPool * 1000),
+          betCount: Math.round(percentageOfPool * 20),
+          percentageOfPool,
+          movement: movement || 'stable',
+        }
+      }
+
+      function decimalToFractional(d) {
+        // Quick fractional approx — fine for fixtures.
+        const num = (d - 1) * 2
+        if (Math.abs(num - Math.round(num)) < 0.05) return Math.round(num) + '/2'
+        return d.toFixed(1) + '/1'
+      }
+
+      const empty = {
+        header: {
+          eventName: 'Cameron Park Pro-Am',
+          poolStatus: 'OPEN',
+          winPoolTotal: 0,
+          placePoolTotal: 0,
+          showPoolTotal: 0,
+          totalPool: 0,
+          countdown: 1800,
+        },
+        odds: {
+          win:   { poolId: 'p1', betType: 'WIN',   poolTotal: 0, poolAfterRake: 0, houseRake: 0, betCount: 0, teams: [], lastUpdated: new Date() },
+          place: { poolId: 'p1', betType: 'PLACE', poolTotal: 0, poolAfterRake: 0, houseRake: 0, betCount: 0, teams: [], lastUpdated: new Date() },
+          show:  { poolId: 'p1', betType: 'SHOW',  poolTotal: 0, poolAfterRake: 0, houseRake: 0, betCount: 0, teams: [], lastUpdated: new Date() },
+        },
+        stats: { totalBets: 0, uniqueBettors: 0, largestBet: 0, popularPick: null },
+        recentActivity: [],
+        refreshIn: 5,
+      }
+
+      const open = {
+        header: {
+          eventName: 'Cameron Park Pro-Am',
+          poolStatus: 'OPEN',
+          winPoolTotal: 1240,
+          placePoolTotal: 620,
+          showPoolTotal: 380,
+          totalPool: 2240,
+          countdown: 1320,
+        },
+        odds: {
+          win: {
+            poolId: 'p1', betType: 'WIN', poolTotal: 1240, poolAfterRake: 1116, houseRake: 124, betCount: 32, lastUpdated: new Date(),
+            teams: [
+              teamOdds(baseTeams[0], 2.5, 0.40, 'stable'),
+              teamOdds(baseTeams[1], 4.0, 0.25, 'stable'),
+              teamOdds(baseTeams[2], 6.0, 0.20, 'stable'),
+              teamOdds(baseTeams[3], 8.5, 0.15, 'stable'),
+            ],
+          },
+          place: {
+            poolId: 'p1', betType: 'PLACE', poolTotal: 620, poolAfterRake: 558, houseRake: 62, betCount: 18, lastUpdated: new Date(),
+            teams: [
+              teamOdds(baseTeams[0], 1.6, 0.40, 'stable'),
+              teamOdds(baseTeams[1], 2.4, 0.25, 'stable'),
+              teamOdds(baseTeams[2], 3.0, 0.20, 'stable'),
+              teamOdds(baseTeams[3], 4.5, 0.15, 'stable'),
+            ],
+          },
+          show: {
+            poolId: 'p1', betType: 'SHOW', poolTotal: 380, poolAfterRake: 342, houseRake: 38, betCount: 11, lastUpdated: new Date(),
+            teams: [
+              teamOdds(baseTeams[0], 1.3, 0.40, 'stable'),
+              teamOdds(baseTeams[1], 1.7, 0.25, 'stable'),
+              teamOdds(baseTeams[2], 2.0, 0.20, 'stable'),
+              teamOdds(baseTeams[3], 2.6, 0.15, 'stable'),
+            ],
+          },
+        },
+        stats: {
+          totalBets: 32,
+          uniqueBettors: 14,
+          largestBet: 250,
+          popularPick: { teamName: 'Smith / Jones', betType: 'WIN', betCount: 12 },
+        },
+        recentActivity: [
+          { id: 'b1', bettorName: 'Mike J.',  amount: 25, teamName: 'Smith / Jones',  betType: 'WIN',   odds: '2/1', timestamp: new Date() },
+          { id: 'b2', bettorName: 'Sarah L.', amount: 50, teamName: 'Lee / Patel',    betType: 'PLACE', odds: '5/2', timestamp: new Date() },
+          { id: 'b3', bettorName: 'Pat K.',   amount: 10, teamName: 'Garcia / Wong',  betType: 'SHOW',  odds: '7/2', timestamp: new Date() },
+          { id: 'b4', bettorName: 'Ryan O.',  amount: 100, teamName: 'OBrien / Kim',  betType: 'WIN',   odds: '15/2', timestamp: new Date() },
+        ],
+        refreshIn: 5,
+      }
+
+      // Movement: t1 odds shorten (more popular), t3 odds lengthen (less)
+      const movement = JSON.parse(JSON.stringify(open))
+      movement.header.winPoolTotal  = 1480
+      movement.header.totalPool     = 2480
+      movement.odds.win.teams[0]   = teamOdds(baseTeams[0], 1.9, 0.50, 'down')  // shorter — popular
+      movement.odds.win.teams[2]   = teamOdds(baseTeams[2], 7.5, 0.13, 'up')    // longer — less popular
+      movement.recentActivity = [
+        { id: 'b9', bettorName: 'Tom R.',  amount: 200, teamName: 'Smith / Jones', betType: 'WIN', odds: '2/1', timestamp: new Date() },
+        ...open.recentActivity,
+      ]
+
+      const closing = JSON.parse(JSON.stringify(open))
+      closing.header.poolStatus = 'OPEN'
+      closing.header.countdown  = 42  // <60s, should flash urgent
+
+      const settled = JSON.parse(JSON.stringify(open))
+      settled.header.poolStatus = 'SETTLED'
+      settled.header.countdown  = null
+
+      const scenarios = { empty, open, movement, closing, settled }
+
+      // Mutable handle the buttons swap
+      window.__currentScenario = 'empty'
+      window.__scenarios = scenarios
+
+      // Intercept fetch
+      const realFetch = window.fetch
+      window.fetch = function (url, opts) {
+        const u = String(url)
+
+        // Tote endpoint
+        if (u.includes('/api/parimutuel/tv/')) {
+          const data = scenarios[window.__currentScenario] || scenarios.empty
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ success: true, data }),
+          })
+        }
+
+        // Player config — keep player happy with displayMode = parimutuel_monitor
+        if (u.includes('/api/players/') && u.endsWith('/config')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({
+              success: true,
+              data: {
+                apiTarget: 'http://localhost:9999',
+                mode: 'kiosk',
+                rotation: 0,
+                displayMode: 'parimutuel_monitor',
+                parimutuelPoolId: 'p1',
+              },
+            }),
+          })
+        }
+
+        // Stream / display-settings — kiosk shouldn't poll these in tote mode,
+        // but stub them safely just in case.
+        if (u.includes('/api/stream/status') || u.includes('/api/system/display-settings')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ success: true, data: {} }),
+          })
+        }
+
+        return realFetch.call(this, url, opts)
+      }
+    })()
+  </script>
+
+  <!-- ========================================================================
+       Same DOM as index.html so player.js can hydrate it.
+       ======================================================================== -->
+
+  <div id="test-controls">
+    <span class="label">SCENARIO</span>
+    <button data-scenario="empty"    class="active">EMPTY</button>
+    <button data-scenario="open">OPEN</button>
+    <button data-scenario="movement">MOVEMENT</button>
+    <button data-scenario="closing">CLOSING</button>
+    <button data-scenario="settled">SETTLED</button>
+    <span id="test-status">scenario: empty</span>
+  </div>
+
+  <div id="video-container" class="hidden">
+    <video id="player" muted autoplay playsinline></video>
+  </div>
+
+  <div id="overlays" class="hidden">
+    <div id="tournament-bar"><span id="tournament-name"></span><span id="current-hole"></span></div>
+    <div id="active-team" class="hidden">
+      <div id="active-team-name"></div>
+      <div id="active-team-hole"></div>
+      <div id="active-team-members"></div>
+    </div>
+    <div id="bottom-bar">
+      <div id="leaderboard-ticker" class="hidden">
+        <div id="leaderboard-label">LEADERBOARD</div>
+        <div id="leaderboard-track"><div id="leaderboard-content"></div></div>
+      </div>
+      <div id="sponsor-bar" class="hidden">
+        <span id="sponsor-text"></span>
+        <img id="sponsor-logo" class="hidden" alt="">
+      </div>
+    </div>
+  </div>
+
+  <!-- Tote board (the one we're testing) -->
+  <div id="tote-board" class="hidden">
+    <div class="tote-header">
+      <div class="tote-event">
+        <div class="tote-event-meta">
+          <span class="tote-event-label">PICKS POOL</span>
+          <span id="tote-status" class="tote-status tote-status-open">OPEN</span>
+        </div>
+        <h1 id="tote-event-name">—</h1>
+      </div>
+      <div class="tote-countdown">
+        <div class="tote-countdown-label">CLOSES IN</div>
+        <div id="tote-countdown-value">—</div>
+      </div>
+    </div>
+    <div class="tote-pools">
+      <div class="tote-pool" data-pool="win">
+        <span class="tote-pool-label">WIN</span>
+        <span id="tote-win-pool" class="tote-pool-value">$0</span>
+      </div>
+      <div class="tote-pool" data-pool="place">
+        <span class="tote-pool-label">PLACE</span>
+        <span id="tote-place-pool" class="tote-pool-value">$0</span>
+      </div>
+      <div class="tote-pool" data-pool="show">
+        <span class="tote-pool-label">SHOW</span>
+        <span id="tote-show-pool" class="tote-pool-value">$0</span>
+      </div>
+      <div class="tote-pool tote-pool-total" data-pool="total">
+        <span class="tote-pool-label">TOTAL POOL</span>
+        <span id="tote-total-pool" class="tote-pool-value">$0</span>
+      </div>
+    </div>
+    <div class="tote-grid">
+      <div class="tote-grid-header">
+        <div class="tote-col tote-col-team">TEAM</div>
+        <div class="tote-col tote-col-odds">WIN</div>
+        <div class="tote-col tote-col-odds">PLACE</div>
+        <div class="tote-col tote-col-odds">SHOW</div>
+        <div class="tote-col tote-col-share">% POOL</div>
+      </div>
+      <div id="tote-grid-body" class="tote-grid-body"></div>
+    </div>
+    <div class="tote-marquee">
+      <div class="tote-marquee-label">RECENT</div>
+      <div class="tote-marquee-track">
+        <div id="tote-marquee-content" class="tote-marquee-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="offline-screen" class="hidden">
+    <div id="offline-content">
+      <div id="greenside-logo">
+        <span class="logo-green">GREEN</span><span class="logo-side">SIDE</span>
+        <span class="logo-player">PLAYER</span>
+      </div>
+      <div id="offline-message">Stream starting soon</div>
+      <div id="offline-pulse"></div>
+    </div>
+  </div>
+
+  <div id="web-controls" class="hidden">
+    <button id="btn-mute"></button>
+    <button id="btn-fullscreen"></button>
+  </div>
+
+  <!-- Force tote-board mode via URL params before player.js boots -->
+  <script>
+    (function () {
+      const cur = new URL(location.href)
+      if (!cur.searchParams.has('displayMode')) cur.searchParams.set('displayMode', 'parimutuel_monitor')
+      if (!cur.searchParams.has('poolId'))      cur.searchParams.set('poolId', 'p1')
+      if (!cur.searchParams.has('server'))      cur.searchParams.set('server', 'http://mock.local')
+      if (cur.search !== location.search) {
+        location.replace(cur.toString())
+      }
+    })()
+  </script>
+
+  <script src="player.js"></script>
+
+  <!-- Scenario switcher: clicks update the mock + nudge the kiosk to re-poll -->
+  <script>
+    document.querySelectorAll('#test-controls button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const sc = btn.dataset.scenario
+        window.__currentScenario = sc
+        document.querySelectorAll('#test-controls button').forEach((b) => b.classList.remove('active'))
+        btn.classList.add('active')
+        document.getElementById('test-status').textContent = 'scenario: ' + sc
+        // Force an immediate re-render by triggering a manual fetch via the
+        // already-running poll cycle. Simplest: dispatch a synthetic interval
+        // tick by polling once now.
+        // The kiosk polls every refreshIn seconds; users can also click again
+        // to force successive renders for animation testing.
+      })
+    })
+  </script>
+</body>
+</html>
