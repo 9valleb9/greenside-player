@@ -4,7 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Greenside Live</title>
-  <link rel="stylesheet" href="player.css">
+  <!-- ?v=__VERSION__ is rewritten by Dockerfile at build time to the
+       git SHA so every new image cache-busts the browser cache. If you
+       see __VERSION__ verbatim in DevTools, the build-arg didn't pass. -->
+  <link rel="stylesheet" href="player.css?v=__VERSION__">
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
 </head>
 <body>
@@ -127,6 +130,6 @@
     </button>
   </div>
 
-  <script src="player.js"></script>
+  <script src="player.js?v=__VERSION__"></script>
 </body>
 </html>
