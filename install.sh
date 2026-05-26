@@ -281,6 +281,61 @@ fi
 BASH_PROFILE
 chown "${INSTALL_USER}:${INSTALL_USER}" "${INSTALL_HOME}/.bash_profile"
 
+# --- Boot-time image refresh ---
+# Pulls ghcr.io/9valleb9/greenside-player:latest on every reboot and
+# restarts the container if the digest changed. Restart is unless-stopped
+# so a no-op pull (already latest) leaves the running container alone.
+# Hard cap of 60s on the pull so a flaky/down network doesn't hang the
+# kiosk boot; chromium starts with whatever image is already on disk.
+echo "Installing boot-time auto-update unit..."
+cat > /usr/local/bin/greenside-player-update <<UPDATE_SCRIPT
+#!/usr/bin/env bash
+set -euo pipefail
+LOG=/var/log/greenside-player-update.log
+IMAGE="${PLAYER_IMAGE}"
+CONTAINER="${PLAYER_CONTAINER}"
+PORT="${PLAYER_PORT}"
+{
+  echo "--- \$(date -Is) ---"
+  CURRENT_DIGEST=\$(docker inspect --format='{{index .RepoDigests 0}}' "\$IMAGE" 2>/dev/null || echo "")
+  if timeout 60 docker pull "\$IMAGE"; then
+    NEW_DIGEST=\$(docker inspect --format='{{index .RepoDigests 0}}' "\$IMAGE" 2>/dev/null || echo "")
+    if [[ -n "\$NEW_DIGEST" && "\$NEW_DIGEST" != "\$CURRENT_DIGEST" ]]; then
+      echo "Image updated; restarting container."
+      docker rm -f "\$CONTAINER" 2>/dev/null || true
+      docker run -d --name "\$CONTAINER" --restart unless-stopped -p "\${PORT}:80" "\$IMAGE"
+    else
+      echo "No update — image already at \$NEW_DIGEST"
+      # Make sure the container is running even if pull was a no-op
+      docker start "\$CONTAINER" >/dev/null 2>&1 || true
+    fi
+  else
+    echo "docker pull failed or timed out; using existing image."
+    docker start "\$CONTAINER" >/dev/null 2>&1 || true
+  fi
+} >> "\$LOG" 2>&1
+UPDATE_SCRIPT
+chmod +x /usr/local/bin/greenside-player-update
+
+cat > /etc/systemd/system/greenside-player-update.service <<'UNIT'
+[Unit]
+Description=Greenside Player — pull latest image on boot
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/greenside-player-update
+TimeoutStartSec=90
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable greenside-player-update.service
+echo "Boot-time auto-update enabled (greenside-player-update.service)"
+
 # --- Disable console blanking ---
 echo "Disabling console blanking..."
 CMDLINE_FILE="/boot/firmware/cmdline.txt"
@@ -315,9 +370,9 @@ echo ""
 echo "  Reboot to start the kiosk:"
 echo "    sudo reboot"
 echo ""
-echo "  To update the player:"
-echo "    docker pull $PLAYER_IMAGE"
-echo "    docker restart $PLAYER_CONTAINER"
+echo "  To update the player (manual):"
+echo "    sudo /usr/local/bin/greenside-player-update"
+echo "  Auto-update runs on every reboot; log at /var/log/greenside-player-update.log"
 echo ""
 echo "  To change config:"
 echo "    sudo nano $CONFIG_DIR/config.env"
