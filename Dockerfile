@@ -7,6 +7,7 @@ RUN rm -rf /usr/share/nginx/html/*
 COPY index.html /usr/share/nginx/html/
 COPY player.css /usr/share/nginx/html/
 COPY player.js  /usr/share/nginx/html/
+COPY assets/    /usr/share/nginx/html/assets/
 
 # Custom nginx config for SPA + caching
 COPY nginx.conf /etc/nginx/conf.d/default.conf

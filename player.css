@@ -202,28 +202,19 @@ body.mode-web { cursor: default; }
 
 #greenside-logo {
   margin-bottom: 32px;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  font-size: 48px;
-  font-weight: 800;
-  letter-spacing: 4px;
-  line-height: 1;
+  display: flex;
+  justify-content: center;
 }
 
-.logo-green {
-  color: #2ecc71;
-}
-
-.logo-side {
-  color: #fff;
-}
-
-.logo-player {
+/* logo_black.png ships with a black background baked in — sits flush on
+   the offline screen's radial gradient (#111 → #0a0a0a) without a visible
+   seam. Do NOT swap to logo_white.png here; that variant has a white
+   background baked in and will leave a white card on a dark surface. */
+#greenside-logo img {
+  width: 480px;
+  max-width: 60vw;
+  height: auto;
   display: block;
-  font-size: 16px;
-  font-weight: 500;
-  letter-spacing: 8px;
-  color: rgba(255, 255, 255, 0.4);
-  margin-top: 8px;
 }
 
 #offline-message {
@@ -305,8 +296,7 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   #leaderboard-label { font-size: 10px; padding: 0 10px; }
   #leaderboard-content .lb-entry { font-size: 12px; margin-right: 32px; }
   #sponsor-bar { height: 30px; font-size: 11px; }
-  #greenside-logo { font-size: 32px; letter-spacing: 2px; }
-  .logo-player { font-size: 12px; letter-spacing: 6px; }
+  #greenside-logo img { width: 280px; }
   #offline-message { font-size: 14px; }
 }
 
