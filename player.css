@@ -4,7 +4,10 @@
 html, body {
   width: 100%; height: 100%;
   overflow: hidden;
-  background: #0a0a0a;
+  /* Pure black so the offline-screen logo (logo_black.png has a black BG
+     baked in) blends seamlessly. Was #0a0a0a; the few-LSB difference
+     was visible on OLED + high-contrast displays. */
+  background: #000;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: #fff;
   cursor: none;
@@ -184,7 +187,10 @@ body.mode-web { cursor: default; }
 #offline-screen {
   position: fixed; inset: 0;
   z-index: 100;
-  background: radial-gradient(ellipse at center, #111 0%, #0a0a0a 70%);
+  /* Pure black — the logo's baked-in black background needs to match.
+     Don't reintroduce the radial gradient; it makes the logo look like
+     a darker rectangle hovering on a lighter field. */
+  background: #000;
   display: flex;
   align-items: center;
   justify-content: center;
