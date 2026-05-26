@@ -232,17 +232,35 @@ body.mode-web { cursor: default; }
   margin-bottom: 40px;
 }
 
+/* Sonar / radar-ping animation — three Greenside-green rings emanate
+   outward in a continuous wave. Conveys "incoming signal" rather than
+   the generic blinking-dot loader the previous animation was. */
 #offline-pulse {
-  width: 8px; height: 8px;
-  background: #2ecc71;
-  border-radius: 50%;
+  position: relative;
+  width: 120px;
+  height: 120px;
   margin: 0 auto;
-  animation: pulse 2s ease-in-out infinite;
 }
 
-@keyframes pulse {
-  0%, 100% { opacity: 0.3; transform: scale(1); }
-  50%      { opacity: 1;   transform: scale(1.6); }
+#offline-pulse span {
+  position: absolute;
+  inset: 0;
+  border: 2px solid #2ecc71;
+  border-radius: 50%;
+  opacity: 0;
+  /* Cubic-bezier mimics a wave decelerating into the void — ease-out
+     at the edge feels more like a transmission than a uniform scale. */
+  animation: sonar 2.4s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+  will-change: transform, opacity;
+}
+
+#offline-pulse span:nth-child(2) { animation-delay: 0.8s; }
+#offline-pulse span:nth-child(3) { animation-delay: 1.6s; }
+
+@keyframes sonar {
+  0%   { transform: scale(0.15); opacity: 0;   border-width: 4px; }
+  10%  {                         opacity: 0.9;                    }
+  100% { transform: scale(1);    opacity: 0;   border-width: 1px; }
 }
 
 /* === Web Controls === */
