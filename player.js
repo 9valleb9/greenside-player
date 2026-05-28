@@ -285,7 +285,28 @@
   }
 
   function goLive(hlsUrl) {
-    if (isLive && hlsUrl === currentHlsUrl) return;
+    // Compare path-only, not the full signed URL. Cloud re-signs every
+    // poll with a fresh token + expiry query string (5-min TTL vs
+    // 10-second poll cadence), so a naive full-URL equality check sees
+    // a "new" URL on every tick and tears down HLS — the kiosk would
+    // flash black continuously while the source stream never actually
+    // moved. The path is the stable identity.
+    var sameStream = (function () {
+      if (!isLive || !currentHlsUrl) return false;
+      try {
+        var a = new URL(hlsUrl, window.location.origin).pathname;
+        var b = new URL(currentHlsUrl, window.location.origin).pathname;
+        return a === b;
+      } catch (_e) {
+        return hlsUrl === currentHlsUrl;
+      }
+    })();
+    if (sameStream) {
+      // Same playlist — keep playing, just remember the freshest signed
+      // URL so HLS.js will use it on its own segment fetches.
+      currentHlsUrl = hlsUrl;
+      return;
+    }
 
     isLive = true;
     currentHlsUrl = hlsUrl;
