@@ -229,16 +229,47 @@
   // Stream & display polling
   // ---------------------------------------------------------------------------
   async function pollStream() {
+    // Stream URL now comes from cloud (signed Bunny CDN URL), no longer
+    // from the local LAN streamer. Display settings (sponsors, leaderboard,
+    // current hole) still poll the local streamer — they're not in the
+    // cloud yet — and are allowed to fail silently if the LAN is gone.
+    if (!isRegistered) {
+      // Fallback to old behavior for unregistered / dev kiosks
+      try {
+        const [statusRes, settingsRes] = await Promise.all([
+          fetch(apiBase + '/api/stream/status').then(r => r.json()),
+          fetch(apiBase + '/api/system/display-settings').then(r => r.json()),
+        ]);
+        handleStreamStatus(statusRes.data || {});
+        handleDisplaySettings(settingsRes.data || {});
+      } catch (_err) {
+        goOffline();
+      }
+      return;
+    }
+
+    // Cloud-sourced stream status (CDN-backed)
+    let streamData = null;
     try {
-      const [statusRes, settingsRes] = await Promise.all([
-        fetch(apiBase + '/api/stream/status').then(r => r.json()),
-        fetch(apiBase + '/api/system/display-settings').then(r => r.json()),
-      ]);
-      handleStreamStatus(statusRes.data || {});
-      handleDisplaySettings(settingsRes.data || {});
+      const res = await fetch(SERVER_URL + '/api/players/' + PLAYER_ID + '/live', {
+        headers: { Authorization: 'Bearer ' + DEVICE_KEY },
+      });
+      const body = await res.json();
+      streamData = body.data || {};
     } catch (_err) {
-      // API unreachable — show offline
       goOffline();
+      return;
+    }
+    handleStreamStatus(streamData);
+
+    // Best-effort local display-settings fetch — overlay just stays
+    // empty/stale if the LAN can't be reached.
+    try {
+      const res = await fetch(apiBase + '/api/system/display-settings');
+      const body = await res.json();
+      handleDisplaySettings(body.data || {});
+    } catch (_err) {
+      /* overlays remain in their last-known state */
     }
   }
 
