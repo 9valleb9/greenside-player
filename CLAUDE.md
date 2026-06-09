@@ -1,6 +1,8 @@
 # greenside-player — clubhouse kiosk display
 
-Browser-based player kiosk. Runs in fullscreen Chromium on a Raspberry Pi (or any browser) inside the clubhouse. Plays the local edge streamer's HLS feed, shows leaderboards/sponsors, and reports a thin heartbeat to the cloud.
+Part of the Greenside platform — umbrella: `../CLAUDE.md`.
+
+Browser-based player kiosk. Runs in fullscreen Chromium on a Raspberry Pi (or any browser) inside the clubhouse. Plays HLS from the local greenside-origin Pi (or the Bunny CDN), shows leaderboards/sponsors, and reports a thin heartbeat to the cloud.
 
 For the cross-repo big picture, see `greenside-live/docs/ARCHITECTURE.md`.
 
@@ -63,7 +65,7 @@ Full instructions in `README.md`. Step-by-step is intentionally inline so course
 
 - **`Always` location permission isn't relevant.** This is a fixed-location kiosk; geofence work is mobile-app-only.
 - **Console blanking** is disabled via `consoleblank=0` kernel cmdline. If the screen sleeps, that's the first thing to check.
-- **HLS playback errors** are usually upstream (origin streamer offline) — verify the streamer's heartbeat is healthy before debugging the kiosk.
+- **HLS playback errors** are usually upstream (the greenside-origin Pi offline) — verify the origin's heartbeat is healthy before debugging the kiosk.
 - **Sponsor rotation** is currently embedded in player.js; future work moves it to cloud config.
 
 ## Documentation
@@ -73,4 +75,4 @@ Full instructions in `README.md`. Step-by-step is intentionally inline so course
 ## Related
 
 - `greenside-live` — heartbeat target, config source
-- `greensidelive-streamer` — sister edge component on the same site (different heartbeat). The kiosk plays HLS from the streamer's local origin.
+- `greensidelive-streamer` — sister edge component on the same site (different heartbeat). The kiosk plays HLS from the local greenside-origin Pi (or the Bunny CDN).

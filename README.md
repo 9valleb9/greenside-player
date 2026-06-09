@@ -378,4 +378,5 @@ Edit `/opt/greenside-player/config.env` and set `ROTATION=90` (or 180, 270), the
 
 - [greenside-live](https://github.com/9valleb9/greenside-live) — Cloud backend and dashboard
 - [greenside-mobile](https://github.com/9valleb9/greenside-mobile) — iOS/Android app
-- [greensidelive-streamer](https://github.com/9valleb9/greensidelive-streamer) — Edge device streamer (Node.js, FFmpeg, NDI, Docker)
+- [greensidelive-streamer](https://github.com/9valleb9/greensidelive-streamer) — Edge encoder (Node.js, FFmpeg, NDI, Docker) that pushes RTMP to the origin
+- [greenside-origin](https://github.com/9valleb9/greenside-origin) — RTMP→HLS origin (Raspberry Pi 5 nginx-rtmp); the HLS source this kiosk plays
