@@ -70,8 +70,6 @@
 
   // Tote-board state
   let toteTimer = null;
-  let toteCountdownTicker = null;
-  let toteCountdownRemaining = null;
   let totePrevOdds = { win: {}, place: {}, show: {} };
   let toteSeenBetIds = new Set();
   let toteRefreshIn = 5;
@@ -197,10 +195,6 @@
     if (toteTimer) {
       clearInterval(toteTimer);
       toteTimer = null;
-    }
-    if (toteCountdownTicker) {
-      clearInterval(toteCountdownTicker);
-      toteCountdownTicker = null;
     }
   }
 
@@ -592,12 +586,14 @@
 
   function renderRow(t, favoriteId, provisional) {
     const isFav = t.teamId === favoriteId;
+    const players = (t.playerNames || []).join(' & ');
     const sharePct = Math.round(((t.win && t.win.percentageOfPool) || 0) * 100);
     return (
       '<div class="tote-row' + (isFav ? ' is-favorite' : '') + '" data-team="' + esc(t.teamId) + '">' +
         '<div class="tote-row-team">' +
-          '<span class="tote-row-team-num">' + (t.teamNumber || '?') + '</span>' +
+          '<span class="tote-row-team-num">TEAM #' + (t.teamNumber || '?') + '</span>' +
           '<span class="tote-row-team-name">' + esc(t.teamName || ('Team ' + t.teamNumber)) + '</span>' +
+          (players ? '<span class="tote-row-team-players">' + esc(players) + '</span>' : '') +
         '</div>' +
         renderOddsCell(t.win,   t.teamId, 'win',   provisional) +
         renderOddsCell(t.place, t.teamId, 'place', provisional) +
@@ -649,25 +645,9 @@
       : 'tote-status-draft');
   }
 
-  // Server sends the countdown every poll (~5s). We resync to it here and a 1s
-  // local ticker decrements it in between, so "closes in" visibly counts down.
   function setCountdown(seconds) {
-    toteCountdownRemaining = seconds;
-    renderCountdown();
-    if (toteCountdownTicker == null) {
-      toteCountdownTicker = setInterval(() => {
-        if (toteCountdownRemaining != null && toteCountdownRemaining > 0) {
-          toteCountdownRemaining--;
-          renderCountdown();
-        }
-      }, 1000);
-    }
-  }
-
-  function renderCountdown() {
-    const seconds = toteCountdownRemaining;
-    // null = no scheduled close (manual-close pool). Hide the block rather than
-    // show a misleading timer.
+    // null = no scheduled close (manual-close pool). Hide the whole block
+    // rather than show a misleading timer.
     if (seconds == null) {
       if ($toteCountdownBox) $toteCountdownBox.style.display = 'none';
       $toteCountdown.classList.remove('urgent');
