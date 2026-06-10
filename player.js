@@ -51,11 +51,8 @@
   const $tote           = document.getElementById('tote-board');
   const $toteEventName  = document.getElementById('tote-event-name');
   const $toteStatus     = document.getElementById('tote-status');
+  const $toteCountdownBox = document.getElementById('tote-countdown');
   const $toteCountdown  = document.getElementById('tote-countdown-value');
-  const $toteWinPool    = document.getElementById('tote-win-pool');
-  const $totePlacePool  = document.getElementById('tote-place-pool');
-  const $toteShowPool   = document.getElementById('tote-show-pool');
-  const $toteTotalPool  = document.getElementById('tote-total-pool');
   const $toteGridBody   = document.getElementById('tote-grid-body');
   const $toteMarquee    = document.getElementById('tote-marquee-content');
   const $videoContainer = document.getElementById('video-container');
@@ -74,7 +71,6 @@
   // Tote-board state
   let toteTimer = null;
   let totePrevOdds = { win: {}, place: {}, show: {} };
-  let totePrevPools = { win: 0, place: 0, show: 0, total: 0 };
   let toteSeenBetIds = new Set();
   let toteRefreshIn = 5;
 
@@ -159,7 +155,6 @@
     if (data.parimutuelPoolId != null && data.parimutuelPoolId !== parimutuelPoolId) {
       parimutuelPoolId = data.parimutuelPoolId;
       totePrevOdds = { win: {}, place: {}, show: {} };
-      totePrevPools = { win: 0, place: 0, show: 0, total: 0 };
       toteSeenBetIds.clear();
       if (displayMode === 'parimutuel_monitor') {
         pollTote();
@@ -493,11 +488,7 @@
     $toteEventName.textContent = msg || 'No active pool';
     $toteStatus.textContent = '—';
     $toteStatus.className = 'tote-status tote-status-draft';
-    $toteCountdown.textContent = '—';
-    $toteWinPool.textContent = '$0';
-    $totePlacePool.textContent = '$0';
-    $toteShowPool.textContent = '$0';
-    $toteTotalPool.textContent = '$0';
+    setCountdown(null);
     $toteGridBody.innerHTML = '<div class="tote-empty">' + esc(msg || 'No active pool') + '</div>';
   }
 
@@ -506,21 +497,14 @@
     const o = data.odds || {};
     const r = data.recentActivity || [];
     const stats = data.stats || {};
+    // Hide odds ("--") until the pool has enough bets — matches the cloud TV +
+    // mobile so early lopsided odds (e.g. 1/100) never show.
+    const provisional = !!(o.win && o.win.provisional);
 
     // Header
     $toteEventName.textContent = h.eventName || '—';
     setStatus(h.poolStatus);
     setCountdown(h.countdown);
-
-    // Pool totals — flash green when they grow
-    flashPoolIfGrew($toteWinPool.parentElement,    'win',   h.winPoolTotal);
-    flashPoolIfGrew($totePlacePool.parentElement,  'place', h.placePoolTotal);
-    flashPoolIfGrew($toteShowPool.parentElement,   'show',  h.showPoolTotal);
-    flashPoolIfGrew($toteTotalPool.parentElement,  'total', h.totalPool);
-    $toteWinPool.textContent   = fmtMoney(h.winPoolTotal);
-    $totePlacePool.textContent = fmtMoney(h.placePoolTotal);
-    $toteShowPool.textContent  = fmtMoney(h.showPoolTotal);
-    $toteTotalPool.textContent = fmtMoney(h.totalPool);
 
     // Grid — union of teams across W/P/S so every team gets one row
     const teamMap = new Map();
@@ -540,33 +524,38 @@
     }
     const teams = Array.from(teamMap.values()).sort(byTeamNumber);
 
-    // Determine favorite — lowest win odds = most popular = "hot"
+    // Determine favorite — lowest win odds = most popular = "hot".
+    // Skipped while provisional (odds aren't revealed yet).
     let favoriteId = null;
-    let lowestOdds = Infinity;
-    for (const t of teams) {
-      if (t.win && typeof t.win.decimalOdds === 'number' && t.win.decimalOdds < lowestOdds) {
-        lowestOdds = t.win.decimalOdds;
-        favoriteId = t.teamId;
+    if (!provisional) {
+      let lowestOdds = Infinity;
+      for (const t of teams) {
+        if (t.win && typeof t.win.decimalOdds === 'number' && t.win.decimalOdds < lowestOdds) {
+          lowestOdds = t.win.decimalOdds;
+          favoriteId = t.teamId;
+        }
       }
     }
 
     // Render grid (rebuild on each tick — small N, simpler than DOM diffing)
-    $toteGridBody.innerHTML = teams.map((t) => renderRow(t, favoriteId)).join('');
+    $toteGridBody.innerHTML = teams.map((t) => renderRow(t, favoriteId, provisional)).join('');
 
-    // Apply per-cell flash classes for movement (server already computed
-    // .movement = 'up' | 'down' | 'stable' on each TeamOdds entry).
-    for (const t of teams) {
-      for (const bt of ['win', 'place', 'show']) {
-        const odds = t[bt];
-        if (!odds) continue;
-        const prev = totePrevOdds[bt][t.teamId];
-        if (prev != null && prev !== odds.decimalOdds) {
-          // odds shortened (number went down) → more popular → green
-          // odds lengthened (number went up) → less popular → red
-          const dir = odds.decimalOdds < prev ? 'flash-up' : 'flash-down';
-          flashCell(t.teamId, bt, dir);
+    // Per-cell flash for odds movement — only once odds are live. While
+    // provisional we don't record prev odds, so the reveal doesn't flash-storm.
+    if (!provisional) {
+      for (const t of teams) {
+        for (const bt of ['win', 'place', 'show']) {
+          const odds = t[bt];
+          if (!odds) continue;
+          const prev = totePrevOdds[bt][t.teamId];
+          if (prev != null && prev !== odds.decimalOdds) {
+            // odds shortened (number went down) → more popular → green
+            // odds lengthened (number went up) → less popular → red
+            const dir = odds.decimalOdds < prev ? 'flash-up' : 'flash-down';
+            flashCell(t.teamId, bt, dir);
+          }
+          totePrevOdds[bt][t.teamId] = odds.decimalOdds;
         }
-        totePrevOdds[bt][t.teamId] = odds.decimalOdds;
       }
     }
 
@@ -595,9 +584,10 @@
     }
   }
 
-  function renderRow(t, favoriteId) {
+  function renderRow(t, favoriteId, provisional) {
     const isFav = t.teamId === favoriteId;
     const players = (t.playerNames || []).join(' & ');
+    const sharePct = Math.round(((t.win && t.win.percentageOfPool) || 0) * 100);
     return (
       '<div class="tote-row' + (isFav ? ' is-favorite' : '') + '" data-team="' + esc(t.teamId) + '">' +
         '<div class="tote-row-team">' +
@@ -605,19 +595,21 @@
           '<span class="tote-row-team-name">' + esc(t.teamName || ('Team ' + t.teamNumber)) + '</span>' +
           (players ? '<span class="tote-row-team-players">' + esc(players) + '</span>' : '') +
         '</div>' +
-        renderOddsCell(t.win,   t.teamId, 'win') +
-        renderOddsCell(t.place, t.teamId, 'place') +
-        renderOddsCell(t.show,  t.teamId, 'show') +
+        renderOddsCell(t.win,   t.teamId, 'win',   provisional) +
+        renderOddsCell(t.place, t.teamId, 'place', provisional) +
+        renderOddsCell(t.show,  t.teamId, 'show',  provisional) +
         '<div class="tote-row-share">' +
-          '<div class="tote-row-share-bar" style="width:' + Math.round(((t.win && t.win.percentageOfPool) || 0) * 100) + 'px"></div>' +
-          '<div class="tote-row-share-value">' + Math.round(((t.win && t.win.percentageOfPool) || 0) * 100) + '%</div>' +
+          (provisional
+            ? '<div class="tote-row-share-value">—</div>'
+            : '<div class="tote-row-share-bar" style="width:' + sharePct + 'px"></div>' +
+              '<div class="tote-row-share-value">' + sharePct + '%</div>') +
         '</div>' +
       '</div>'
     );
   }
 
-  function renderOddsCell(odds, teamId, bt) {
-    if (!odds) {
+  function renderOddsCell(odds, teamId, bt, provisional) {
+    if (provisional || !odds) {
       return '<div class="tote-row-odds" data-team="' + esc(teamId) + '" data-bt="' + bt + '">' +
                '<div class="tote-row-odds-value">—</div>' +
              '</div>';
@@ -654,14 +646,20 @@
   }
 
   function setCountdown(seconds) {
+    // null = no scheduled close (manual-close pool). Hide the whole block
+    // rather than show a misleading timer.
     if (seconds == null) {
-      $toteCountdown.textContent = '—';
+      if ($toteCountdownBox) $toteCountdownBox.style.display = 'none';
       $toteCountdown.classList.remove('urgent');
       return;
     }
-    const m = Math.floor(seconds / 60);
+    if ($toteCountdownBox) $toteCountdownBox.style.display = '';
+    const hrs = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
-    $toteCountdown.textContent = m + ':' + String(s).padStart(2, '0');
+    $toteCountdown.textContent = hrs > 0
+      ? hrs + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0')
+      : m + ':' + String(s).padStart(2, '0');
     $toteCountdown.classList.toggle('urgent', seconds <= 60);
   }
 
@@ -677,22 +675,6 @@
       el.classList.add(cls);
       setTimeout(() => el.classList.remove(cls), 700);
     });
-  }
-
-  function flashPoolIfGrew(poolEl, key, newVal) {
-    const prev = totePrevPools[key] || 0;
-    if (newVal > prev + 0.01) {
-      poolEl.classList.remove('flash-up');
-      void poolEl.offsetWidth;
-      poolEl.classList.add('flash-up');
-      setTimeout(() => poolEl.classList.remove('flash-up'), 700);
-    }
-    totePrevPools[key] = newVal;
-  }
-
-  function fmtMoney(n) {
-    const v = Math.round(n || 0);
-    return '$' + v.toLocaleString('en-US');
   }
 
   function byTeamNumber(a, b) {

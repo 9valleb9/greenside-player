@@ -336,9 +336,8 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   inset: 0;
   display: flex;
   flex-direction: column;
-  background:
-    radial-gradient(ellipse at top, #11253f 0%, #0a1628 60%, #050a14 100%);
-  color: #e6ecf5;
+  background: #ffffff;
+  color: #111827;
   font-family: 'Helvetica Neue', Arial, sans-serif;
   z-index: 30;
   overflow: hidden;
@@ -351,8 +350,20 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   align-items: center;
   justify-content: space-between;
   padding: 24px 40px;
-  border-bottom: 2px solid rgba(0, 255, 136, 0.2);
-  background: linear-gradient(180deg, rgba(0, 255, 136, 0.05) 0%, transparent 100%);
+  border-bottom: 2px solid #111827;
+  background: #ffffff;
+}
+
+.tote-header-left {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.tote-logo {
+  height: 56px;
+  width: auto;
+  display: block;
 }
 
 .tote-event-meta {
@@ -366,7 +377,7 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 4px;
-  color: #00ff88;
+  color: #16a34a;
 }
 
 .tote-status {
@@ -376,14 +387,14 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 2px;
-  background: #00ff88;
-  color: #0a1628;
+  background: #16a34a;
+  color: #ffffff;
   animation: pulse-status 2s ease-in-out infinite;
 }
 
-.tote-status-closing { background: #ffb700; color: #0a1628; }
+.tote-status-closing { background: #ffb700; color: #ffffff; }
 .tote-status-closed  { background: #ff3b30; color: #fff; }
-.tote-status-settled { background: #4aa3ff; color: #0a1628; }
+.tote-status-settled { background: #4aa3ff; color: #ffffff; }
 .tote-status-draft   { background: #6b7280; color: #fff; animation: none; }
 
 .tote-event h1 {
@@ -402,7 +413,7 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 4px;
-  color: #9aa5b8;
+  color: #6b7280;
   margin-bottom: 4px;
 }
 
@@ -410,7 +421,7 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   font-family: 'Courier New', monospace;
   font-size: 64px;
   font-weight: 800;
-  color: #ffb700;
+  color: #16a34a;
   letter-spacing: 2px;
   line-height: 1;
 }
@@ -441,19 +452,19 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
 }
 
 .tote-pool-total {
-  background: linear-gradient(135deg, #00cc6a 0%, #00ff88 100%);
-  color: #0a1628;
+  background: linear-gradient(135deg, #15803d 0%, #16a34a 100%);
+  color: #ffffff;
 }
 
 .tote-pool-label {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 3px;
-  color: #9aa5b8;
+  color: #6b7280;
   text-transform: uppercase;
 }
 
-.tote-pool-total .tote-pool-label { color: #0a1628; opacity: 0.7; }
+.tote-pool-total .tote-pool-label { color: #ffffff; opacity: 0.7; }
 
 .tote-pool-value {
   font-family: 'Courier New', monospace;
@@ -463,8 +474,8 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   transition: background 600ms ease-out;
 }
 
-.tote-pool.flash-up    { background: rgba(0, 255, 136, 0.25); transition: background 200ms ease-in; }
-.tote-pool.flash-up.tote-pool-total { background: linear-gradient(135deg, #00ff88 0%, #aaffcc 100%); }
+.tote-pool.flash-up    { background: rgba(22, 163, 74, 0.25); transition: background 200ms ease-in; }
+.tote-pool.flash-up.tote-pool-total { background: linear-gradient(135deg, #16a34a 0%, #aaffcc 100%); }
 
 /* Main odds grid ---------------------------------------------------------- */
 
@@ -480,11 +491,11 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   display: grid;
   grid-template-columns: 2.5fr 1fr 1fr 1fr 1fr;
   padding: 12px 0;
-  border-bottom: 2px solid rgba(0, 255, 136, 0.4);
+  border-bottom: 2px solid #111827;
   font-size: 14px;
   font-weight: 800;
   letter-spacing: 4px;
-  color: #9aa5b8;
+  color: #6b7280;
 }
 
 .tote-col-team   { text-align: left;  padding-left: 16px; }
@@ -506,14 +517,14 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   align-items: center;
   padding: 16px 0;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
+  background: #f9fafb;
   transition: background 600ms ease-out, border-color 600ms ease-out;
-  border: 2px solid transparent;
+  border: 2px solid #e5e7eb;
 }
 
 .tote-row.is-favorite {
-  background: linear-gradient(90deg, rgba(0, 255, 136, 0.12) 0%, rgba(0, 255, 136, 0.04) 100%);
-  border-color: rgba(0, 255, 136, 0.4);
+  background: linear-gradient(90deg, rgba(22, 163, 74, 0.12) 0%, rgba(22, 163, 74, 0.04) 100%);
+  border-color: rgba(22, 163, 74, 0.4);
 }
 
 .tote-row-team {
@@ -526,24 +537,24 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
 .tote-row-team-num {
   font-size: 14px;
   font-weight: 800;
-  color: #9aa5b8;
+  color: #6b7280;
   letter-spacing: 2px;
 }
 
 .tote-row-team-name {
   font-size: 26px;
   font-weight: 800;
-  color: #e6ecf5;
+  color: #111827;
   letter-spacing: -0.5px;
   line-height: 1;
 }
 
-.tote-row.is-favorite .tote-row-team-num   { color: #00ff88; }
-.tote-row.is-favorite .tote-row-team-name  { color: #00ff88; }
+.tote-row.is-favorite .tote-row-team-num   { color: #16a34a; }
+.tote-row.is-favorite .tote-row-team-name  { color: #16a34a; }
 
 .tote-row-team-players {
   font-size: 13px;
-  color: #677488;
+  color: #9ca3af;
   letter-spacing: 0.3px;
 }
 
@@ -559,13 +570,13 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   font-family: 'Courier New', monospace;
   font-size: 32px;
   font-weight: 800;
-  color: #e6ecf5;
+  color: #111827;
   line-height: 1;
 }
 
 .tote-row-odds-decimal {
   font-size: 11px;
-  color: #677488;
+  color: #9ca3af;
   letter-spacing: 0.5px;
   margin-top: 4px;
 }
@@ -581,20 +592,20 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
 }
 
 .tote-row-odds.flash-up {
-  background: rgba(0, 255, 136, 0.22);
-  color: #00ff88;
-  animation: cell-flash-up 600ms ease-out;
+  background: transparent;
+  color: #16a34a;
+  animation: cell-flash-up 700ms ease-out;
 }
-.tote-row-odds.flash-up   .tote-row-odds-value { color: #00ff88; }
-.tote-row-odds.flash-up   .tote-row-odds-arrow { color: #00ff88; opacity: 1; }
+.tote-row-odds.flash-up   .tote-row-odds-value { color: #16a34a; }
+.tote-row-odds.flash-up   .tote-row-odds-arrow { color: #16a34a; opacity: 1; }
 
 .tote-row-odds.flash-down {
-  background: rgba(255, 59, 48, 0.18);
-  color: #ff3b30;
-  animation: cell-flash-down 600ms ease-out;
+  background: transparent;
+  color: #dc2626;
+  animation: cell-flash-down 700ms ease-out;
 }
-.tote-row-odds.flash-down .tote-row-odds-value { color: #ff3b30; }
-.tote-row-odds.flash-down .tote-row-odds-arrow { color: #ff3b30; opacity: 1; }
+.tote-row-odds.flash-down .tote-row-odds-value { color: #dc2626; }
+.tote-row-odds.flash-down .tote-row-odds-arrow { color: #dc2626; opacity: 1; }
 
 .tote-row-share {
   text-align: right;
@@ -604,7 +615,7 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
 .tote-row-share-bar {
   display: inline-block;
   height: 6px;
-  background: linear-gradient(90deg, #00ff88 0%, #00cc6a 100%);
+  background: linear-gradient(90deg, #16a34a 0%, #15803d 100%);
   border-radius: 3px;
   margin-bottom: 6px;
   vertical-align: middle;
@@ -615,7 +626,7 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   font-family: 'Courier New', monospace;
   font-size: 18px;
   font-weight: 700;
-  color: #c4ccd9;
+  color: #374151;
 }
 
 /* Bottom marquee ---------------------------------------------------------- */
@@ -624,8 +635,8 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   display: flex;
   align-items: center;
   height: 56px;
-  background: linear-gradient(90deg, rgba(0, 255, 136, 0.1) 0%, transparent 6%, transparent 100%);
-  border-top: 2px solid rgba(0, 255, 136, 0.3);
+  background: linear-gradient(90deg, rgba(22, 163, 74, 0.1) 0%, transparent 6%, transparent 100%);
+  border-top: 2px solid rgba(22, 163, 74, 0.3);
   overflow: hidden;
 }
 
@@ -635,12 +646,12 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   font-size: 14px;
   font-weight: 800;
   letter-spacing: 4px;
-  color: #00ff88;
-  background: rgba(0, 255, 136, 0.15);
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.15);
   height: 100%;
   display: flex;
   align-items: center;
-  border-right: 2px solid rgba(0, 255, 136, 0.3);
+  border-right: 2px solid rgba(22, 163, 74, 0.3);
 }
 
 .tote-marquee-track {
@@ -662,11 +673,11 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
 .tote-marquee-bet {
   display: inline-block;
   margin-right: 48px;
-  color: #c4ccd9;
+  color: #374151;
 }
 
-.tote-marquee-bet b { color: #00ff88; }
-.tote-marquee-bet .amt { color: #ffb700; font-weight: 700; }
+.tote-marquee-bet b { color: #16a34a; }
+.tote-marquee-bet .amt { color: #16a34a; font-weight: 700; }
 
 /* Empty state ------------------------------------------------------------- */
 
@@ -675,7 +686,7 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #677488;
+  color: #9ca3af;
   font-size: 24px;
   letter-spacing: 1px;
 }
@@ -693,13 +704,15 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
 }
 
 @keyframes cell-flash-up {
-  0%   { background: rgba(0, 255, 136, 0.55); transform: scale(1.04); }
-  100% { background: rgba(0, 255, 136, 0.22); transform: scale(1); }
+  0%   { background: rgba(22, 163, 74, 0.85); transform: scale(1.14); box-shadow: 0 0 28px rgba(22, 163, 74, 0.55); }
+  60%  { background: rgba(22, 163, 74, 0.40); }
+  100% { background: rgba(22, 163, 74, 0);    transform: scale(1); box-shadow: 0 0 0 rgba(22, 163, 74, 0); }
 }
 
 @keyframes cell-flash-down {
-  0%   { background: rgba(255, 59, 48, 0.45); transform: scale(1.04); }
-  100% { background: rgba(255, 59, 48, 0.18); transform: scale(1); }
+  0%   { background: rgba(220, 38, 38, 0.70); transform: scale(1.14); box-shadow: 0 0 28px rgba(220, 38, 38, 0.50); }
+  60%  { background: rgba(220, 38, 38, 0.32); }
+  100% { background: rgba(220, 38, 38, 0);    transform: scale(1); box-shadow: 0 0 0 rgba(220, 38, 38, 0); }
 }
 
 @keyframes marquee-scroll {
