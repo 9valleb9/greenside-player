@@ -25,7 +25,16 @@ Distinct from the streamer's. The kiosk is **a different component** with its ow
 
 The streamer is on `Device.lastSeen` with a 5-min window. The kiosk is on `Player.lastSeen` with a 15-min window. Course admins see both as independent components on `/dashboard/courses/[courseId]/devices` (Site Infrastructure).
 
-The kiosk also polls `GET /api/players/[playerId]/config` every 60 s for runtime config (api target, mode, rotation, sponsors).
+The kiosk also polls `GET /api/players/[playerId]/config` every 60 s for runtime config (api target, mode, rotation, sponsors, **displayMode + parimutuelPoolId**).
+
+### Display modes (live stream vs parimutuel board)
+
+`player.js` switches what the kiosk shows based on `displayMode` from cloud config:
+
+- `live_stream` (default) — HLS feed + leaderboard/sponsor overlays.
+- `parimutuel_monitor` — the tote board for `parimutuelPoolId` (mirrors the cloud TV view `/parimutuel/tv/[poolId]`).
+
+Both fields live on the cloud `Player` row and are **set from the admin**: Site Infrastructure → the kiosk's **"Display"** button → `KioskDisplayConfig` modal (Live stream | Parimutuel board + pool). The kiosk applies the change on its next config poll (≤60 s) — no SSH, no restart. The whole pipeline (schema → config endpoint → `player.js` apply → tote DOM) already existed; only the admin selector was added (2026-06). Test page: `test-tote.html`.
 
 ## Where things live
 
