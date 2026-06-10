@@ -482,20 +482,30 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
 .tote-grid {
   flex: 1;
   display: flex;
+  flex-direction: row;
+  gap: 2.2vw;
+  overflow: hidden;
+  padding: 1.2vh 2.2vw;
+}
+
+/* Each column holds its own header + ~10 teams. */
+.tote-grid-col {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 16px 40px;
 }
 
 .tote-grid-header {
   display: grid;
-  grid-template-columns: 2.5fr 1fr 1fr 1fr 1fr;
-  padding: 12px 0;
-  border-bottom: 2px solid #111827;
-  font-size: 14px;
+  grid-template-columns: 2.6fr 1fr 1fr 1fr;
+  padding: 1vh 0;
+  border-bottom: 3px solid #111827;
+  font-size: 1.7vh;
   font-weight: 800;
-  letter-spacing: 4px;
-  color: #6b7280;
+  letter-spacing: 3px;
+  color: #374151;
 }
 
 .tote-col-team   { text-align: left;  padding-left: 16px; }
@@ -506,20 +516,23 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-top: 8px;
+  gap: 0.6vh;
+  margin-top: 0.6vh;
   overflow: hidden;
 }
 
+/* Rows flex to share the column height — 10 per column fill the screen big. */
 .tote-row {
+  flex: 1 1 0;
+  min-height: 0;
   display: grid;
-  grid-template-columns: 2.5fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 2.6fr 1fr 1fr 1fr;
   align-items: center;
-  padding: 16px 0;
+  padding: 0 0.6vw;
   border-radius: 8px;
   background: #ffffff;
   transition: background 600ms ease-out, border-color 600ms ease-out;
-  border: 2px solid #e5e7eb;
+  border: 2px solid #d1d5db;
 }
 
 .tote-row.is-favorite {
@@ -535,27 +548,33 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
 }
 
 .tote-row-team-num {
-  font-size: 14px;
+  font-size: 1.8vh;
   font-weight: 800;
   color: #6b7280;
   letter-spacing: 2px;
 }
 
 .tote-row-team-name {
-  font-size: 26px;
+  font-size: 3.3vh;
   font-weight: 800;
   color: #111827;
   letter-spacing: -0.5px;
-  line-height: 1;
+  line-height: 1.05;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tote-row.is-favorite .tote-row-team-num   { color: #16a34a; }
 .tote-row.is-favorite .tote-row-team-name  { color: #16a34a; }
 
 .tote-row-team-players {
-  font-size: 13px;
-  color: #9ca3af;
+  font-size: 1.7vh;
+  color: #6b7280;
   letter-spacing: 0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tote-row-odds {
@@ -568,7 +587,7 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
 
 .tote-row-odds-value {
   font-family: 'Courier New', monospace;
-  font-size: 32px;
+  font-size: 3.6vh;
   font-weight: 800;
   color: #111827;
   line-height: 1;

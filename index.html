@@ -66,16 +66,26 @@
       </div>
     </div>
 
-    <!-- Main odds grid -->
+    <!-- Main odds grid — two columns of teams (10 each) so all fit big -->
     <div class="tote-grid">
-      <div class="tote-grid-header">
-        <div class="tote-col tote-col-team">TEAM</div>
-        <div class="tote-col tote-col-odds">WIN</div>
-        <div class="tote-col tote-col-odds">PLACE</div>
-        <div class="tote-col tote-col-odds">SHOW</div>
-        <div class="tote-col tote-col-share">% POOL</div>
+      <div class="tote-grid-col">
+        <div class="tote-grid-header">
+          <div class="tote-col tote-col-team">TEAM</div>
+          <div class="tote-col tote-col-odds">WIN</div>
+          <div class="tote-col tote-col-odds">PLACE</div>
+          <div class="tote-col tote-col-odds">SHOW</div>
+        </div>
+        <div id="tote-grid-body-left" class="tote-grid-body"></div>
       </div>
-      <div id="tote-grid-body" class="tote-grid-body"></div>
+      <div class="tote-grid-col">
+        <div class="tote-grid-header">
+          <div class="tote-col tote-col-team">TEAM</div>
+          <div class="tote-col tote-col-odds">WIN</div>
+          <div class="tote-col tote-col-odds">PLACE</div>
+          <div class="tote-col tote-col-odds">SHOW</div>
+        </div>
+        <div id="tote-grid-body-right" class="tote-grid-body"></div>
+      </div>
     </div>
 
     <!-- Bottom marquee: recent bets -->

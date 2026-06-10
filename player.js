@@ -53,7 +53,8 @@
   const $toteStatus     = document.getElementById('tote-status');
   const $toteCountdownBox = document.getElementById('tote-countdown');
   const $toteCountdown  = document.getElementById('tote-countdown-value');
-  const $toteGridBody   = document.getElementById('tote-grid-body');
+  const $toteGridBodyLeft  = document.getElementById('tote-grid-body-left');
+  const $toteGridBodyRight = document.getElementById('tote-grid-body-right');
   const $toteMarquee    = document.getElementById('tote-marquee-content');
   const $videoContainer = document.getElementById('video-container');
 
@@ -489,7 +490,8 @@
     $toteStatus.textContent = '—';
     $toteStatus.className = 'tote-status tote-status-draft';
     setCountdown(null);
-    $toteGridBody.innerHTML = '<div class="tote-empty">' + esc(msg || 'No active pool') + '</div>';
+    $toteGridBodyLeft.innerHTML = '<div class="tote-empty">' + esc(msg || 'No active pool') + '</div>';
+    $toteGridBodyRight.innerHTML = '';
   }
 
   function renderTote(data) {
@@ -538,7 +540,10 @@
     }
 
     // Render grid (rebuild on each tick — small N, simpler than DOM diffing)
-    $toteGridBody.innerHTML = teams.map((t) => renderRow(t, favoriteId, provisional)).join('');
+    // Two columns: first half left (e.g. teams 1–10), second half right (11–20).
+    const half = Math.ceil(teams.length / 2);
+    $toteGridBodyLeft.innerHTML  = teams.slice(0, half).map((t) => renderRow(t, favoriteId, provisional)).join('');
+    $toteGridBodyRight.innerHTML = teams.slice(half).map((t) => renderRow(t, favoriteId, provisional)).join('');
 
     // Per-cell flash for odds movement — only once odds are live. While
     // provisional we don't record prev odds, so the reveal doesn't flash-storm.
@@ -587,7 +592,6 @@
   function renderRow(t, favoriteId, provisional) {
     const isFav = t.teamId === favoriteId;
     const players = (t.playerNames || []).join(' & ');
-    const sharePct = Math.round(((t.win && t.win.percentageOfPool) || 0) * 100);
     return (
       '<div class="tote-row' + (isFav ? ' is-favorite' : '') + '" data-team="' + esc(t.teamId) + '">' +
         '<div class="tote-row-team">' +
@@ -598,12 +602,6 @@
         renderOddsCell(t.win,   t.teamId, 'win',   provisional) +
         renderOddsCell(t.place, t.teamId, 'place', provisional) +
         renderOddsCell(t.show,  t.teamId, 'show',  provisional) +
-        '<div class="tote-row-share">' +
-          (provisional
-            ? '<div class="tote-row-share-value">—</div>'
-            : '<div class="tote-row-share-bar" style="width:' + sharePct + 'px"></div>' +
-              '<div class="tote-row-share-value">' + sharePct + '%</div>') +
-        '</div>' +
       '</div>'
     );
   }
@@ -667,7 +665,7 @@
     // Set on next paint so the freshly-rendered row picks up the class.
     requestAnimationFrame(() => {
       const sel = '.tote-row[data-team="' + cssEscape(teamId) + '"] .tote-row-odds[data-bt="' + bt + '"]';
-      const el = $toteGridBody.querySelector(sel);
+      const el = $tote.querySelector(sel);
       if (!el) return;
       el.classList.remove('flash-up', 'flash-down');
       // force reflow so re-applied animation restarts
