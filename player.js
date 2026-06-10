@@ -610,7 +610,9 @@
   }
 
   function renderOddsCell(odds, teamId, bt, provisional) {
-    if (provisional || !odds) {
+    // "—" while provisional, or when this team has no bets of this type yet —
+    // the as-if-$1 fallback odds (e.g. 90/1) are meaningless and look bizarre.
+    if (provisional || !odds || !odds.betCount) {
       return '<div class="tote-row-odds" data-team="' + esc(teamId) + '" data-bt="' + bt + '">' +
                '<div class="tote-row-odds-value">—</div>' +
              '</div>';
