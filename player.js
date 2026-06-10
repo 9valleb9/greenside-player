@@ -591,7 +591,11 @@
 
   function renderRow(t, favoriteId, provisional) {
     const isFav = t.teamId === favoriteId;
-    const players = (t.playerNames || []).join(' & ');
+    // Last names only — keeps the team cell short so it can't bleed into the odds.
+    const players = (t.playerNames || [])
+      .map((n) => String(n).trim().split(/\s+/).pop())
+      .filter(Boolean)
+      .join(' & ');
     return (
       '<div class="tote-row' + (isFav ? ' is-favorite' : '') + '" data-team="' + esc(t.teamId) + '">' +
         '<div class="tote-row-team">' +

@@ -545,6 +545,8 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   flex-direction: column;
   gap: 4px;
   padding-left: 16px;
+  min-width: 0;     /* allow the cell to shrink so names ellipsis instead of bleeding into the odds */
+  overflow: hidden;
 }
 
 .tote-row-team-num {
