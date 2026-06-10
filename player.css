@@ -336,7 +336,7 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   inset: 0;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
+  background: #eef2f7;
   color: #111827;
   font-family: 'Helvetica Neue', Arial, sans-serif;
   z-index: 30;
@@ -349,8 +349,8 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 24px 40px;
-  border-bottom: 2px solid #111827;
+  padding: 1.8vh 2.2vw;
+  border-bottom: 3px solid #111827;
   background: #ffffff;
 }
 
@@ -361,7 +361,8 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
 }
 
 .tote-logo {
-  height: 56px;
+  height: 8vh;
+  max-height: 74px;
   width: auto;
   display: block;
 }
@@ -374,7 +375,7 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
 }
 
 .tote-event-label {
-  font-size: 14px;
+  font-size: 1.8vh;
   font-weight: 700;
   letter-spacing: 4px;
   color: #16a34a;
@@ -382,9 +383,9 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
 
 .tote-status {
   display: inline-block;
-  padding: 4px 14px;
+  padding: 0.6vh 1vw;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 1.9vh;
   font-weight: 800;
   letter-spacing: 2px;
   background: #16a34a;
@@ -399,10 +400,10 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
 
 .tote-event h1 {
   margin: 0;
-  font-size: 56px;
+  font-size: 4.6vh;
   font-weight: 800;
   letter-spacing: -1px;
-  line-height: 1;
+  line-height: 1.05;
 }
 
 .tote-countdown {
@@ -410,16 +411,16 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
 }
 
 .tote-countdown-label {
-  font-size: 12px;
+  font-size: 1.7vh;
   font-weight: 700;
   letter-spacing: 4px;
   color: #6b7280;
-  margin-bottom: 4px;
+  margin-bottom: 0.4vh;
 }
 
 #tote-countdown-value {
   font-family: 'Courier New', monospace;
-  font-size: 64px;
+  font-size: 6vh;
   font-weight: 800;
   color: #16a34a;
   letter-spacing: 2px;
@@ -484,18 +485,18 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 16px 40px;
+  padding: 1vh 2vw;
 }
 
 .tote-grid-header {
   display: grid;
   grid-template-columns: 2.5fr 1fr 1fr 1fr 1fr;
-  padding: 12px 0;
-  border-bottom: 2px solid #111827;
-  font-size: 14px;
+  padding: 1vh 0;
+  border-bottom: 3px solid #111827;
+  font-size: 1.7vh;
   font-weight: 800;
-  letter-spacing: 4px;
-  color: #6b7280;
+  letter-spacing: 3px;
+  color: #374151;
 }
 
 .tote-col-team   { text-align: left;  padding-left: 16px; }
@@ -506,20 +507,23 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-top: 8px;
+  gap: 0.5vh;
+  margin-top: 0.6vh;
   overflow: hidden;
 }
 
+/* Rows flex to share the grid height — all teams fit on screen (no scroll/clip)
+   regardless of count, and scale up on bigger TVs. */
 .tote-row {
+  flex: 1 1 0;
+  min-height: 0;
   display: grid;
   grid-template-columns: 2.5fr 1fr 1fr 1fr 1fr;
   align-items: center;
-  padding: 16px 0;
   border-radius: 8px;
-  background: #f9fafb;
+  background: #ffffff;
   transition: background 600ms ease-out, border-color 600ms ease-out;
-  border: 2px solid #e5e7eb;
+  border: 2px solid #d1d5db;
 }
 
 .tote-row.is-favorite {
@@ -529,34 +533,41 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
 
 .tote-row-team {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-left: 16px;
+  flex-direction: row;
+  align-items: center;
+  gap: 1.4vw;
+  padding-left: 1.2vw;
+  min-width: 0;
 }
 
 .tote-row-team-num {
-  font-size: 14px;
+  flex-shrink: 0;
+  min-width: 2.2em;
+  text-align: center;
+  font-size: 2.2vh;
   font-weight: 800;
-  color: #6b7280;
-  letter-spacing: 2px;
+  color: #374151;
+  background: #e5e7eb;
+  border-radius: 8px;
+  padding: 0.4vh 0.5vw;
 }
 
 .tote-row-team-name {
-  font-size: 26px;
+  font-size: 3.4vh;
   font-weight: 800;
   color: #111827;
   letter-spacing: -0.5px;
-  line-height: 1;
+  line-height: 1.05;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.tote-row.is-favorite .tote-row-team-num   { color: #16a34a; }
-.tote-row.is-favorite .tote-row-team-name  { color: #16a34a; }
+.tote-row.is-favorite .tote-row-team-num   { background: #bbf7d0; color: #15803d; }
+.tote-row.is-favorite .tote-row-team-name  { color: #15803d; }
 
-.tote-row-team-players {
-  font-size: 13px;
-  color: #9ca3af;
-  letter-spacing: 0.3px;
-}
+/* Player names hidden on the board — keeps rows to one line so all teams fit. */
+.tote-row-team-players { display: none; }
 
 .tote-row-odds {
   text-align: center;
@@ -568,17 +579,17 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
 
 .tote-row-odds-value {
   font-family: 'Courier New', monospace;
-  font-size: 32px;
+  font-size: 3.6vh;
   font-weight: 800;
   color: #111827;
   line-height: 1;
 }
 
 .tote-row-odds-decimal {
-  font-size: 11px;
-  color: #9ca3af;
+  font-size: 1.5vh;
+  color: #6b7280;
   letter-spacing: 0.5px;
-  margin-top: 4px;
+  margin-top: 0.4vh;
 }
 
 .tote-row-odds-arrow {
@@ -624,7 +635,7 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
 
 .tote-row-share-value {
   font-family: 'Courier New', monospace;
-  font-size: 18px;
+  font-size: 2.1vh;
   font-weight: 700;
   color: #374151;
 }
@@ -634,7 +645,7 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
 .tote-marquee {
   display: flex;
   align-items: center;
-  height: 56px;
+  height: 9vh;
   background: linear-gradient(90deg, rgba(22, 163, 74, 0.1) 0%, transparent 6%, transparent 100%);
   border-top: 2px solid rgba(22, 163, 74, 0.3);
   overflow: hidden;
@@ -642,8 +653,8 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
 
 .tote-marquee-label {
   flex-shrink: 0;
-  padding: 0 24px;
-  font-size: 14px;
+  padding: 0 1.6vw;
+  font-size: 2.2vh;
   font-weight: 800;
   letter-spacing: 4px;
   color: #16a34a;
@@ -664,10 +675,10 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   display: inline-block;
   white-space: nowrap;
   padding-left: 100%;
-  animation: marquee-scroll 60s linear infinite;
-  font-size: 18px;
+  animation: marquee-scroll 42s linear infinite;
+  font-size: 2.9vh;
   letter-spacing: 0.5px;
-  line-height: 56px;
+  line-height: 9vh;
 }
 
 .tote-marquee-bet {
