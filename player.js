@@ -595,7 +595,6 @@
     return (
       '<div class="tote-row' + (isFav ? ' is-favorite' : '') + '" data-team="' + esc(t.teamId) + '">' +
         '<div class="tote-row-team">' +
-          '<span class="tote-row-team-num">TEAM #' + (t.teamNumber || '?') + '</span>' +
           '<span class="tote-row-team-name">' + esc(t.teamName || ('Team ' + t.teamNumber)) + '</span>' +
           (players ? '<span class="tote-row-team-players">' + esc(players) + '</span>' : '') +
         '</div>' +
