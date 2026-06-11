@@ -18,6 +18,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Gate the image build on the player tests (e.g. the HLS deep-buffer
+      # config). Zero deps — Node's built-in test runner.
+      - name: Run tests
+        run: npm test
+
       - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
