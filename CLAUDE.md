@@ -42,7 +42,10 @@ Both fields live on the cloud `Player` row and are **set from the admin**: Site 
 |---------|------|
 | Player UI | `index.html` + `player.js` + `player.css` |
 | Cloud config polling | `player.js` (`CONFIG_POLL_INTERVAL`) |
-| HLS playback | `player.js` (HLS.js setup) |
+| HLS playback | `player.js` (`startPlayback`/stall watchdog) + **`hls-config.js`** (the `buildHlsConfig()` factory) |
+| HLS buffering config | **`hls-config.js`** — kiosk is a PASSIVE display: `lowLatencyMode:false`, sits ~18s back (`liveSyncDuration`), deep buffer, smooth catch-up (`maxLiveSyncPlaybackRate`), patient `fragLoadPolicy` retries (no ABR fallback). Tested by `tests/hls-config.test.js` (CI-gated). Was jumpy when it ran low-latency at the edge. |
+| Tests (zero-dep, Node's runner) | `tests/*.test.js`, `npm test`; gated in `.github/workflows/docker-publish.yml` |
+| Boot auto-update + cache fix | `install.sh` (`greenside-player-update.service`) + `enable-auto-update.sh` (retrofit for an already-installed kiosk) |
 | Kiosk installer | `install.sh` (Raspberry Pi OS) |
 | Heartbeat cron script (installed by `install.sh`) | `/usr/local/bin/greenside-player-heartbeat` (post-install) |
 | Config (installed) | `/opt/greenside-player/config.env` |
@@ -76,7 +79,9 @@ Full instructions in `README.md`. Step-by-step is intentionally inline so course
 - **Chromium serves a STALE cached page after a new image — clear its disk cache.** The #1 "I pushed but the kiosk looks the same" trap (cost us hours on 2026-06-10). The Docker pull + recreate can be correct (verify with `docker exec greenside-player grep -c <a-distinctive-string> /usr/share/nginx/html/player.js` — a *plain* string, not a regex; `\s`-style patterns get mangled through the shell and false-negative) yet chromium still renders the old `player.js`/`player.css` from its on-disk cache even after a reboot. Fix: `sudo find / -type d -path "*chromium*" -name "Cache" -exec rm -rf {} + 2>/dev/null` then `sudo reboot`. nginx already sends no-cache headers; the disk cache survives them. (Backlog: a `greenside-player-update` boot unit that pulls `:latest` + clears the cache so this is automatic.)
 - **Tote board rendering** (`parimutuel_monitor`): two-column layout, **last names only** in the team cell (full names bleed into the W/P/S columns), no "TEAM #" label, **"—"** for any team/type with no bets (`odds.betCount` — the as-if-$1 fallback odds read as bizarre long shots), client-side trend arrows, and the recent-activity **marquee runs at `marquee-scroll 120s`** (halved from 60s — 60s was too fast to read).
 - **Console blanking** is disabled via `consoleblank=0` kernel cmdline. If the screen sleeps, that's the first thing to check.
-- **HLS playback errors** are usually upstream (the greenside-origin Pi offline) — verify the origin's heartbeat is healthy before debugging the kiosk.
+- **HLS playback errors** are usually upstream (the greenside-origin Pi offline) — verify the origin's heartbeat is healthy before debugging the kiosk. But "jumpy"/stalling playback on an otherwise-healthy stream is a PLAYER-side buffering issue → see `hls-config.js` (deep buffer, no low-latency). A no-ABR single rendition has no lower variant to drop to, so the buffer must absorb all jitter.
+- **The `Dockerfile` COPYs specific files, NOT `COPY . .`.** Any new file `index.html` references with a `<script>`/`<link>` (e.g. `hls-config.js`) MUST get its own `COPY` line, or it 404s in the image → broken JS / black screen with overlays. `tests/hls-config.test.js` asserts every local asset in `index.html` is copied; the test gates the image build.
+- **Updating the kiosk is now hands-free:** push to `main` → CI builds → `sudo reboot`. The boot service pulls `:latest`; chromium runs with `--disk-cache-size=1` + a boot cache-wipe so it always loads fresh (the old manual `docker pull` + cache-clear dance is gone, once `enable-auto-update.sh` has run once).
 - **Sponsor rotation** is currently embedded in player.js; future work moves it to cloud config.
 
 ## Documentation
