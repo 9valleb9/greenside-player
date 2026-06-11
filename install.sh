@@ -251,6 +251,11 @@ fi
 echo "Configuring autologin for $INSTALL_USER..."
 mkdir -p /etc/systemd/system/getty@tty1.service.d
 cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf <<EOF
+[Unit]
+# Wait for the boot image refresh before the kiosk (chromium) starts, so it
+# loads the just-pulled image instead of the previous one (one-reboot updates).
+After=greenside-player-update.service
+
 [Service]
 ExecStart=
 ExecStart=-/sbin/agetty --autologin ${INSTALL_USER} --noclear %I \$TERM
@@ -264,6 +269,11 @@ if [ "$(tty)" = "/dev/tty1" ]; then
   source /opt/greenside-player/config.env 2>/dev/null
   export XDG_RUNTIME_DIR=/run/user/$(id -u)
   mkdir -p "$XDG_RUNTIME_DIR"
+  # Stale CSS/JS after an image update was chromium serving its on-disk cache,
+  # which survives reboots and nginx's no-cache headers. Wipe it on boot AND run
+  # with the disk cache disabled — the kiosk loads a localhost page, so the cache
+  # buys nothing and only ever causes "I updated but it looks the same".
+  find "$HOME" -type d -path "*chromium*" -name "Cache" -exec rm -rf {} + 2>/dev/null || true
   exec cage -s -- chromium \
     --kiosk \
     --noerrdialogs \
@@ -276,6 +286,7 @@ if [ "$(tty)" = "/dev/tty1" ]; then
     --disable-component-update \
     --autoplay-policy=no-user-gesture-required \
     --check-for-update-interval=31536000 \
+    --disk-cache-size=1 \
     "http://localhost:${PLAYER_PORT:-8080}?api=${API_BASE}&mode=${MODE:-kiosk}&rotate=${ROTATION:-0}&server=${SERVER_URL:-}&playerId=${PLAYER_ID:-}&deviceKey=${DEVICE_KEY:-}"
 fi
 BASH_PROFILE
