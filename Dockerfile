@@ -10,10 +10,11 @@ ARG BUILD_VERSION=dev
 RUN rm -rf /usr/share/nginx/html/*
 
 # Copy player files
-COPY index.html /usr/share/nginx/html/
-COPY player.css /usr/share/nginx/html/
-COPY player.js  /usr/share/nginx/html/
-COPY assets/    /usr/share/nginx/html/assets/
+COPY index.html    /usr/share/nginx/html/
+COPY player.css    /usr/share/nginx/html/
+COPY player.js     /usr/share/nginx/html/
+COPY hls-config.js /usr/share/nginx/html/
+COPY assets/       /usr/share/nginx/html/assets/
 
 # Rewrite the ?v=__VERSION__ placeholders in index.html so each build
 # serves a unique CSS/JS URL — bypasses Chromium's disk cache without

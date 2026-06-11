@@ -52,3 +52,19 @@ test('index.html loads hls-config.js before player.js', () => {
   assert.ok(cfg !== -1, 'index.html must include hls-config.js');
   assert.ok(cfg < player, 'hls-config.js must load before player.js');
 });
+
+test('Dockerfile copies every local script/style index.html references', () => {
+  const root = path.join(__dirname, '..');
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const dockerfile = fs.readFileSync(path.join(root, 'Dockerfile'), 'utf8');
+  // Local .js/.css referenced in index.html (skip absolute CDN URLs + ?v=).
+  const refs = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
+    .map((m) => m[1].split('?')[0])
+    .filter((u) => /\.(js|css)$/.test(u) && !/^(https?:)?\/\//.test(u));
+  assert.ok(refs.length >= 2, 'expected local assets in index.html');
+  for (const ref of refs) {
+    const base = ref.replace(/^\.?\//, '');
+    const re = new RegExp('COPY\\s+' + base.replace(/\./g, '\\.') + '\\b');
+    assert.ok(re.test(dockerfile), `index.html loads "${ref}" but the Dockerfile never COPYs it into the image (it would 404 on the kiosk)`);
+  }
+});
