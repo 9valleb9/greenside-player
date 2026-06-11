@@ -338,28 +338,32 @@
     destroyPlayback();
 
     if (Hls.isSupported()) {
-      hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: true,
-        maxBufferLength: 10,
-        maxMaxBufferLength: 30,
-      });
+      // Deep-buffer, sit-back-from-live config (see hls-config.js). Passive
+      // kiosk: latency irrelevant, ride out last-mile jitter.
+      hls = new Hls(buildHlsConfig());
       hls.loadSource(url);
       hls.attachMedia($video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         $video.play().catch(() => {});
       });
       hls.on(Hls.Events.ERROR, (_e, data) => {
-        if (data.fatal) {
-          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-            hls.startLoad();
-          } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-            hls.recoverMediaError();
-          } else {
-            destroyPlayback();
-          }
+        // Non-fatal errors (incl. BUFFER_STALLED_ERROR) are retried internally
+        // by hls.js per fragLoadPolicy / nudgeMaxRetry; the stall watchdog below
+        // covers anything that slips through. Only act on fatal errors.
+        if (!data.fatal) return;
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+          hls.startLoad();                 // resume / reconnect loading
+        } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+          hls.recoverMediaError();
+        } else if (isLive && currentHlsUrl) {
+          // Otherwise unrecoverable for this instance — rebuild against the
+          // freshest signed URL rather than going dark.
+          setTimeout(() => { if (isLive && currentHlsUrl) startPlayback(currentHlsUrl); }, 2000);
+        } else {
+          destroyPlayback();
         }
       });
+      startStallWatchdog();
     } else if ($video.canPlayType('application/vnd.apple.mpegurl')) {
       // Safari native HLS
       $video.src = url;
@@ -370,12 +374,61 @@
   }
 
   function destroyPlayback() {
+    stopStallWatchdog();
     if (hls) {
       hls.destroy();
       hls = null;
     }
     $video.removeAttribute('src');
     $video.load();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Stall watchdog — a passive kiosk must never sit frozen. If playback stops
+  // advancing while we believe we're live (and not intentionally paused), nudge
+  // the loader; escalate to a media recover, then a full rebuild, if it persists.
+  // This catches the cases where hls.js's own recovery gives up.
+  // ---------------------------------------------------------------------------
+  let watchdogTimer = null;
+  let watchdogLastTime = 0;
+  let watchdogStallTicks = 0;
+  const WATCHDOG_INTERVAL = 3000;
+
+  function startStallWatchdog() {
+    stopStallWatchdog();
+    watchdogLastTime = $video.currentTime;
+    watchdogStallTicks = 0;
+    watchdogTimer = setInterval(() => {
+      if (!isLive || $video.paused || $video.ended || $video.readyState === 0) {
+        watchdogLastTime = $video.currentTime;
+        watchdogStallTicks = 0;
+        return;
+      }
+      if ($video.currentTime > watchdogLastTime + 0.1) {
+        watchdogLastTime = $video.currentTime;   // advancing — healthy
+        watchdogStallTicks = 0;
+        return;
+      }
+      // Frozen while it should be playing — escalate recovery.
+      watchdogStallTicks++;
+      if (hls && watchdogStallTicks === 2) {
+        hls.startLoad();
+        $video.play().catch(() => {});
+      } else if (hls && watchdogStallTicks === 5) {
+        try { hls.recoverMediaError(); } catch (_e) {}
+        $video.play().catch(() => {});
+      } else if (watchdogStallTicks >= 8 && currentHlsUrl) {
+        watchdogStallTicks = 0;
+        startPlayback(currentHlsUrl);            // last resort: full rebuild
+      }
+    }, WATCHDOG_INTERVAL);
+  }
+
+  function stopStallWatchdog() {
+    if (watchdogTimer) {
+      clearInterval(watchdogTimer);
+      watchdogTimer = null;
+    }
   }
 
   // ---------------------------------------------------------------------------
