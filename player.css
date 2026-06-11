@@ -685,7 +685,7 @@ body.rotate-270 #offline-screen { transform: rotate(270deg); transform-origin: c
   display: inline-block;
   white-space: nowrap;
   padding-left: 100%;
-  animation: marquee-scroll 60s linear infinite;
+  animation: marquee-scroll 120s linear infinite;
   font-size: 18px;
   letter-spacing: 0.5px;
   line-height: 56px;
