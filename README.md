@@ -1,5 +1,7 @@
 # Greenside Player
 
+> **🟢 New here?** Greenside is seven repos with a setup order (the cloud comes first). **Start with the [workspace setup guide → DO THIS FIRST](https://github.com/9valleb9/greenside-workspace/blob/main/SETUP.md)**, then return here for this component's details.
+
 Universal viewer for golf course live streams. Displays HLS video with tournament overlays, leaderboard ticker, and sponsor rotation. Part of the [Greenside](https://greenside.live) platform.
 
 ## Platform Architecture
