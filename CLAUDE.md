@@ -67,7 +67,7 @@ ssh pi@kiosk-1
 curl -fsSL https://raw.githubusercontent.com/9valleb9/greenside-player/main/install.sh | sudo bash -s -- \
   --token <REGISTRATION_TOKEN_FROM_CLOUD> \
   --server https://www.greenside.live \
-  --api http://192.168.1.40:8080
+  http://192.168.1.40:3000
 sudo reboot
 ```
 
