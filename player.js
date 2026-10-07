@@ -53,8 +53,7 @@
   const $toteStatus     = document.getElementById('tote-status');
   const $toteCountdownBox = document.getElementById('tote-countdown');
   const $toteCountdown  = document.getElementById('tote-countdown-value');
-  const $toteGridBodyLeft  = document.getElementById('tote-grid-body-left');
-  const $toteGridBodyRight = document.getElementById('tote-grid-body-right');
+  const $toteGrid       = document.getElementById('tote-grid');
   const $toteMarquee    = document.getElementById('tote-marquee-content');
   const $videoContainer = document.getElementById('video-container');
 
@@ -543,8 +542,8 @@
     $toteStatus.textContent = '—';
     $toteStatus.className = 'tote-status tote-status-draft';
     setCountdown(null);
-    $toteGridBodyLeft.innerHTML = '<div class="tote-empty">' + esc(msg || 'No active pool') + '</div>';
-    $toteGridBodyRight.innerHTML = '';
+    $toteGrid.innerHTML = '<div class="tote-grid-col"><div class="tote-grid-body">' +
+      '<div class="tote-empty">' + esc(msg || 'No active pool') + '</div></div></div>';
   }
 
   function renderTote(data) {
@@ -592,11 +591,8 @@
       }
     }
 
-    // Render grid (rebuild on each tick — small N, simpler than DOM diffing)
-    // Two columns: first half left (e.g. teams 1–10), second half right (11–20).
-    const half = Math.ceil(teams.length / 2);
-    $toteGridBodyLeft.innerHTML  = teams.slice(0, half).map((t) => renderRow(t, favoriteId, provisional)).join('');
-    $toteGridBodyRight.innerHTML = teams.slice(half).map((t) => renderRow(t, favoriteId, provisional)).join('');
+    // Render grid (rebuild on each tick — simpler than DOM diffing).
+    renderGrid(teams, favoriteId, provisional);
 
     // Per-cell flash for odds movement — only once odds are live. While
     // provisional we don't record prev odds, so the reveal doesn't flash-storm.
@@ -642,11 +638,72 @@
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Grid layout — fits any field size on one screen. Small fields (≤24) keep
+  // the big two-column board; larger fields get 3 (≤66) or 4 columns, and row
+  // height is measured from the screen so text is sized to the row instead of
+  // overflowing it. Short rows switch to a single-line "compact" row.
+  // ---------------------------------------------------------------------------
+  const TOTE_COMPACT_BELOW_PX = 72;
+  let toteRowsPerCol = 0;
+
+  function toteColumnCount(n) {
+    return n <= 24 ? 2 : n <= 66 ? 3 : 4;
+  }
+
+  const TOTE_GRID_HEADER =
+    '<div class="tote-grid-header">' +
+      '<div class="tote-col tote-col-team">TEAM</div>' +
+      '<div class="tote-col tote-col-odds">WIN</div>' +
+      '<div class="tote-col tote-col-odds">PLACE</div>' +
+      '<div class="tote-col tote-col-odds">SHOW</div>' +
+    '</div>';
+
+  function renderGrid(teams, favoriteId, provisional) {
+    const cols = toteColumnCount(teams.length);
+    const perCol = Math.max(1, Math.ceil(teams.length / cols));
+    let html = '';
+    for (let c = 0; c < cols; c++) {
+      const slice = teams.slice(c * perCol, (c + 1) * perCol);
+      html += '<div class="tote-grid-col">' + TOTE_GRID_HEADER +
+        '<div class="tote-grid-body">' +
+          slice.map((t) => renderRow(t, favoriteId, provisional)).join('') +
+        '</div></div>';
+    }
+    $toteGrid.innerHTML = html;
+    toteRowsPerCol = perCol;
+    sizeToteRows();
+  }
+
+  // Row height = column body height / rows, published as --tote-row-h; all
+  // row font sizes derive from it in player.css.
+  function sizeToteRows() {
+    const body = $toteGrid.querySelector('.tote-grid-body');
+    if (!body || !toteRowsPerCol) return;
+    const gap = parseFloat(getComputedStyle(body).rowGap) || 0;
+    // Space actually visible for rows: from the top of the body to the grid's
+    // inner bottom edge (the body box can extend past it and be clipped).
+    const gridBottom = $toteGrid.getBoundingClientRect().bottom -
+      (parseFloat(getComputedStyle($toteGrid).paddingBottom) || 0);
+    const avail = Math.min(body.clientHeight, gridBottom - body.getBoundingClientRect().top);
+    const rowH = Math.max(18, (avail - gap * (toteRowsPerCol - 1)) / toteRowsPerCol);
+    $tote.style.setProperty('--tote-row-h', rowH.toFixed(1) + 'px');
+    $tote.classList.toggle('tote-compact', rowH < TOTE_COMPACT_BELOW_PX);
+  }
+  // Re-measure whenever the grid's box changes (window/rotation, the board
+  // being shown, fonts loading, a long event name wrapping the header).
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver(sizeToteRows).observe($toteGrid);
+  } else {
+    window.addEventListener('resize', sizeToteRows);
+  }
+
   function renderRow(t, favoriteId, provisional) {
     const isFav = t.teamId === favoriteId;
     // Last names only — keeps the team cell short so it can't bleed into the odds.
+    // Everything after the first name, so "Robert van Dyne" → "van Dyne".
     const players = (t.playerNames || [])
-      .map((n) => String(n).trim().split(/\s+/).pop())
+      .map((n) => { const w = String(n).trim().split(/\s+/); return w.length > 1 ? w.slice(1).join(' ') : w[0]; })
       .filter(Boolean)
       .join(' & ');
     return (
